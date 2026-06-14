@@ -1,0 +1,20 @@
+<%- include('partials/head', { title: 'Dashboard' }) %>
+<%- include('partials/nav') %>
+<main class="container">
+  <h1>Dashboard</h1>
+  <section class="grid" id="statsGrid">
+    <div class="card stat"><span class="label">URLs used</span><span class="value" id="urlUsage">–</span></div>
+    <div class="card stat"><span class="label">Active domains</span><span class="value" id="domainUsage">–</span></div>
+    <div class="card stat"><span class="label">Registered domains</span><span class="value" id="regUsage">–</span></div>
+    <div class="card stat"><span class="label">Referral code</span><span class="value" id="refCode">–</span></div>
+  </section>
+
+  <section class="card">
+    <h2>Recent jobs</h2>
+    <table class="table" id="jobsTable">
+      <thead><tr><th>Type</th><th>Status</th><th>Attempts</th><th>When</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+</main>
+<%- include('partials/foot') %>

@@ -1,0 +1,37 @@
+<%- include('partials/head', { title: 'Help & Tutorial' }) %>
+<%- include('partials/nav') %>
+<main class="container prose">
+  <h1>Tutorial &amp; Setup</h1>
+
+  <h2>1. Create a Cloudflare API Token</h2>
+  <ol>
+    <li>Go to <strong>Cloudflare Dashboard → My Profile → API Tokens → Create Token</strong>.</li>
+    <li>Use a custom token with these permissions:
+      <ul>
+        <li><code>Zone → Zone → Read</code></li>
+        <li><code>Zone → Ruleset → Edit</code></li>
+      </ul>
+    </li>
+    <li>Scope it to the specific zones you'll use, then create and copy the token.</li>
+  </ol>
+
+  <h2>2. Connect the token</h2>
+  <p>Paste it on the <a href="/domains">Domains</a> page. The Master performs a
+     dry-run to confirm the scopes before storing it (encrypted).</p>
+
+  <h2>3. Register &amp; activate a domain</h2>
+  <p>Pick a zone, register it (max 10), then activate it (max 5 active). Activation
+     provisions the redirect ruleset on Cloudflare.</p>
+
+  <h2>4. Create short URLs</h2>
+  <p>Add URLs singly or in bulk. Each request is queued on the Master; the
+     background worker writes the 302 redirect rule to Cloudflare. Status moves
+     from <em>queued → active</em>.</p>
+
+  <h2>5. Sync / Rebuild</h2>
+  <p>If Cloudflare and the panel disagree, use <strong>Rebuild</strong> on the
+     domain to rewrite all rules from the system of record.</p>
+
+  <p class="muted">See also the <a href="/agreement">User Agreement / TOS</a>.</p>
+</main>
+<%- include('partials/foot') %>

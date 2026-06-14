@@ -1,0 +1,34 @@
+<%- include('partials/head', { title: 'URLs' }) %>
+<%- include('partials/nav') %>
+<main class="container">
+  <h1>Short URLs</h1>
+
+  <section class="card" id="createCard">
+    <h2>Create URL</h2>
+    <div class="row">
+      <select id="domainSelect"></select>
+      <input type="text" id="slugInput" placeholder="custom slug (optional)" />
+      <input type="url" id="targetInput" placeholder="https://destination.example/page" />
+      <button class="btn primary" id="createUrlBtn">Create</button>
+    </div>
+    <details>
+      <summary>Bulk create</summary>
+      <p class="muted small">One per line as <code>slug,https://target</code> (slug optional: <code>,https://target</code>).</p>
+      <textarea id="bulkInput" rows="6" placeholder="promo,https://example.com/a
+,https://example.com/b"></textarea>
+      <button class="btn" id="bulkBtn">Bulk create</button>
+    </details>
+    <p id="createMsg" class="msg"></p>
+    <p id="lockMsg" class="banner hidden">Quota reached — URL creation is locked.</p>
+  </section>
+
+  <section class="card">
+    <h2>Existing URLs</h2>
+    <div class="row"><select id="filterDomain"><option value="">All domains</option></select></div>
+    <table class="table" id="urlsTable">
+      <thead><tr><th>Slug</th><th>Target</th><th>Status</th><th>State</th><th>Actions</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+</main>
+<%- include('partials/foot') %>

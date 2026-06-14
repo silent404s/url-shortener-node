@@ -1,0 +1,37 @@
+<%- include('partials/head', { title: 'Domains' }) %>
+<%- include('partials/nav') %>
+<main class="container">
+  <h1>Domains &amp; Cloudflare</h1>
+
+  <section class="card">
+    <h2>1 · Connect Cloudflare</h2>
+    <p class="muted small">Your API Token is sent to the Master, which validates the
+      <code>Zone.Read</code> + <code>Zone.Ruleset.Edit</code> scopes and stores it encrypted.
+      This panel never keeps your token.</p>
+    <div class="row">
+      <input type="password" id="cfToken" placeholder="Cloudflare API Token" autocomplete="off" />
+      <input type="text" id="cfLabel" placeholder="Label (optional)" />
+      <button class="btn primary" id="saveTokenBtn">Validate &amp; save</button>
+    </div>
+    <p id="tokenMsg" class="msg"></p>
+  </section>
+
+  <section class="card">
+    <h2>2 · Pick a domain</h2>
+    <div class="row">
+      <select id="zoneSelect"><option value="">— load zones —</option></select>
+      <button class="btn" id="loadZonesBtn">Load zones</button>
+      <button class="btn primary" id="registerDomainBtn">Register domain</button>
+    </div>
+    <p class="muted small">Max 10 registered, 5 active per Cloudflare account.</p>
+  </section>
+
+  <section class="card">
+    <h2>Your domains</h2>
+    <table class="table" id="domainsTable">
+      <thead><tr><th>Domain</th><th>State</th><th>Actions</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+</main>
+<%- include('partials/foot') %>

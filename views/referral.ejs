@@ -1,0 +1,22 @@
+<%- include('partials/head', { title: 'Referral' }) %>
+<%- include('partials/nav') %>
+<main class="container">
+  <h1>Referral Program</h1>
+  <section class="card">
+    <p>Your invite code:</p>
+    <div class="code-box"><span id="refCode">–</span>
+      <button class="btn small" id="copyRefBtn">Copy</button></div>
+    <div class="grid">
+      <div class="card stat"><span class="label">Invited users</span><span class="value" id="invitedCount">–</span></div>
+      <div class="card stat"><span class="label">Bonus URLs earned</span><span class="value" id="bonusUrls">–</span></div>
+    </div>
+  </section>
+  <section class="card">
+    <h2>Invited accounts</h2>
+    <table class="table" id="invitedTable">
+      <thead><tr><th>Email</th><th>Bonus URL</th><th>Date</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+</main>
+<%- include('partials/foot') %>

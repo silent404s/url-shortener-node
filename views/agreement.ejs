@@ -1,0 +1,22 @@
+<%- include('partials/head', { title: 'User Agreement' }) %>
+<%- include('partials/nav') %>
+<main class="container prose">
+  <h1>User Agreement / Terms of Service</h1>
+  <p class="muted">Version 2025-01</p>
+  <h2>1. Acceptable use</h2>
+  <p>You may not use this service to create redirects to malware, phishing, or
+     other unlawful destinations. Targets are scanned globally for abuse.</p>
+  <h2>2. Quotas &amp; fair use</h2>
+  <p>Base limits are 100 URLs and 5 active domains per account. Attempting to
+     bypass limits across multiple accounts (e.g. duplicating destinations) may
+     result in suspension.</p>
+  <h2>3. Cloudflare credentials</h2>
+  <p>API tokens you provide are stored encrypted on the Master and used solely to
+     manage redirect rulesets on your behalf.</p>
+  <h2>4. Enforcement</h2>
+  <p>The operator may revoke a license at any time for violations, which removes
+     all associated Cloudflare rules and blocks the affected domains.</p>
+  <h2>5. No warranty</h2>
+  <p>The service is provided "as is" without warranty of any kind.</p>
+</main>
+<%- include('partials/foot') %>

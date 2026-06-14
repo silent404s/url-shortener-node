@@ -1,0 +1,17 @@
+<%- include('partials/head', { title: 'Login' }) %>
+<main class="auth-wrap">
+  <div class="card auth-card">
+    <h1>⚡ Shortener Panel</h1>
+    <p class="muted">This panel is bound to a license issued by the Master server.
+      Click below to validate your license and sign in.</p>
+    <button id="loginBtn" class="btn primary">Validate license &amp; sign in</button>
+    <p id="loginMsg" class="msg"></p>
+    <p class="muted small">
+      Need help? See the <a href="/help">setup tutorial</a> or
+      <a href="/agreement">User Agreement</a>.
+    </p>
+  </div>
+</main>
+<script src="/static/js/login.js"></script>
+</body>
+</html>
