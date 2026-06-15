@@ -1,8 +1,19 @@
 'use strict';
 const express = require('express');
 const { requireSession } = require('../session');
+const { getBranding } = require('../masterClient');
 
 const router = express.Router();
+
+// Make the Master-controlled footer attribution available to every view.
+router.use(async (req, res, next) => {
+  try {
+    res.locals.branding = await getBranding();
+  } catch {
+    res.locals.branding = { attributionText: 'silent404s', attributionUrl: '#' };
+  }
+  next();
+});
 
 router.get('/login', (req, res) => res.render('login'));
 

@@ -39,6 +39,12 @@ function createApp() {
   app.use(pinoHttp({ logger }));
   app.use('/static', express.static(path.join(__dirname, '..', 'public')));
 
+  // Keep the entire Node panel out of search engines.
+  app.get('/robots.txt', (req, res) =>
+    res.type('text/plain').send('User-agent: *\nDisallow: /\n')
+  );
+  app.get('/favicon.ico', (req, res) => res.redirect(301, '/static/favicon.svg'));
+
   // Rate-limit login attempts.
   const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30 });
 

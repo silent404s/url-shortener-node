@@ -69,4 +69,20 @@ async function validateLicense() {
   }
 }
 
-module.exports = { forward, validateLicense, http };
+/**
+ * Fetch centrally-controlled branding (footer attribution) from the Master.
+ * Cached 5 minutes; falls back to a sane default if the Master is unreachable.
+ */
+async function getBranding() {
+  const cached = cache.get('branding');
+  if (cached) return cached;
+  try {
+    const res = await http.get('/public/branding');
+    cache.set('branding', res.data, 300);
+    return res.data;
+  } catch {
+    return { attributionText: 'silent404s', attributionUrl: '#' };
+  }
+}
+
+module.exports = { forward, validateLicense, getBranding, http };
