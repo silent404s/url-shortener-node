@@ -136,7 +136,6 @@ async function viewDashboard(el) {
     </div>`;
 }
 
-let _cfAccountId = null;
 async function viewDomains(el) {
   el.innerHTML = `
     <div class="card">
@@ -149,13 +148,12 @@ async function viewDomains(el) {
       </div>
     </div>
     <div class="card">
-      <h2>2 · Pilih domain</h2>
+      <h2>2 · Daftarkan domain</h2>
+      <p class="muted small">Ketik nama domain (zona) yang sudah aktif di Cloudflare. Maks 10 terdaftar, 5 aktif per akun.</p>
       <div class="row">
-        <select id="zoneSelect"><option value="">— muat zona —</option></select>
-        <button class="btn" id="loadZonesBtn"><i class="fa-solid fa-rotate"></i> Muat zona</button>
+        <input type="text" id="domainInput" placeholder="contoh.com" autocomplete="off" />
         <button class="btn primary" id="registerDomainBtn"><i class="fa-solid fa-plus"></i> Daftarkan</button>
       </div>
-      <p class="muted small">Maks 10 terdaftar, 5 aktif per akun Cloudflare.</p>
     </div>
     <div class="card">
       <h2>Domain Anda</h2>
@@ -168,27 +166,18 @@ async function viewDomains(el) {
     if (!token) return toast('Masukkan token terlebih dahulu.', 'warn');
     toast('Memvalidasi token ke Master…');
     const { status, data } = await api.post('/cloudflare/token', { token, label });
-    if (status === 201) { _cfAccountId = data.cfAccountId; fillZones(data.zones || []); $('#cfToken').value = '';
-      toast(`Token valid. ${data.zones.length} zona ditemukan.`, 'ok'); }
+    if (status === 201) { $('#cfToken').value = '';
+      toast(`Token valid. ${(data.zones || []).length} zona terdeteksi di akun Anda.`, 'ok'); }
     else toast(data.error?.message || 'Validasi gagal.', 'err');
   };
-  $('#loadZonesBtn').onclick = async () => {
-    const { status, data } = await api.get('/cloudflare/zones');
-    if (status === 200) { _cfAccountId = data.cfAccountId; fillZones(data.zones || []); toast('Zona dimuat.', 'ok'); }
-    else toast(data.error?.message || 'Gagal memuat zona.', 'err');
-  };
   $('#registerDomainBtn').onclick = async () => {
-    const opt = $('#zoneSelect').selectedOptions[0];
-    if (!opt || !opt.value || !_cfAccountId) return toast('Muat & pilih zona dulu.', 'warn');
-    const { status, data } = await api.post('/domains', { cfAccountId: _cfAccountId, zoneId: opt.value, zoneName: opt.dataset.name });
-    if (status === 201) { toast('Domain didaftarkan.', 'ok'); loadDomains(); }
+    const domainName = $('#domainInput').value.trim().toLowerCase();
+    if (!domainName) return toast('Ketik nama domain dulu.', 'warn');
+    toast('Mencari domain di Cloudflare…');
+    const { status, data } = await api.post('/domains', { domainName });
+    if (status === 201) { $('#domainInput').value = ''; toast(`Domain ${data.zoneName} didaftarkan.`, 'ok'); loadDomains(); }
     else toast(data.error?.message || 'Gagal mendaftarkan domain.', 'err');
   };
-  function fillZones(zones) {
-    $('#zoneSelect').innerHTML = zones.length
-      ? zones.map((z) => `<option value="${esc(z.zoneId)}" data-name="${esc(z.name)}">${esc(z.name)}</option>`).join('')
-      : '<option value="">(tidak ada zona)</option>';
-  }
   async function loadDomains() {
     const { data } = await api.get('/domains');
     $('#domainsTable tbody').innerHTML = (data.domains || []).map((d) => `<tr>
@@ -227,13 +216,25 @@ async function viewUrls(el) {
     </div>
     <div class="card">
       <h2>Tautan tersimpan</h2>
-      <div class="row"><select id="filterDomain"><option value="">Semua domain</option></select></div>
+      <div class="row">
+        <select id="filterDomain"><option value="">Semua domain</option></select>
+        <div class="bulkbar hidden" id="bulkBar">
+          <span id="selCount" class="muted small">0 dipilih</span>
+          <button class="btn small" id="bulkCopy"><i class="fa-solid fa-copy"></i> Salin terpilih</button>
+          <button class="btn small danger" id="bulkDelete"><i class="fa-solid fa-trash"></i> Hapus terpilih</button>
+        </div>
+      </div>
       <div class="table-wrap"><table class="table" id="urlsTable">
-        <thead><tr><th>Slug</th><th>Tujuan</th><th>Status</th><th>Aksi</th></tr></thead><tbody></tbody></table></div>
+        <thead><tr>
+          <th class="chkcol"><input type="checkbox" id="checkAll" /></th>
+          <th>Tautan pendek</th><th>Tujuan</th><th>Status</th><th>Aksi</th>
+        </tr></thead><tbody></tbody></table></div>
     </div>`;
 
   const { data: dom } = await api.get('/domains');
-  const active = (dom.domains || []).filter((d) => d.state === 'active');
+  const domList = dom.domains || [];
+  const active = domList.filter((d) => d.state === 'active');
+  const domMap = {}; domList.forEach((d) => { domMap[d.id] = d.zone_name; });
   const opts = active.map((d) => `<option value="${d.id}">${esc(d.zone_name)}</option>`).join('');
   $('#domainSelect').innerHTML = opts || '<option value="">(belum ada domain aktif)</option>';
   $('#filterDomain').innerHTML = '<option value="">Semua domain</option>' + opts;
@@ -243,16 +244,34 @@ async function viewUrls(el) {
   $('#lockMsg').classList.toggle('hidden', !locked);
   ['createUrlBtn', 'bulkBtn', 'slugInput', 'targetInput', 'bulkInput'].forEach((id) => { const x = $('#' + id); if (x) x.disabled = locked; });
 
+  const shortUrl = (u) => `https://${domMap[u.domain_id] || 'domain'}/${u.slug}`;
+
   async function loadUrls() {
     const f = $('#filterDomain').value;
     const { data } = await api.get('/urls' + (f ? `?domainId=${f}` : ''));
-    $('#urlsTable tbody').innerHTML = (data.urls || []).map((u) => `<tr>
-      <td><code>/${esc(u.slug)}</code></td>
-      <td class="muted ellipsis">${esc(u.target_url)}</td>
-      <td>${badge(u.state)}</td>
-      <td class="actions"><button class="btn small danger" data-del="${u.id}"><i class="fa-solid fa-trash"></i></button></td>
-    </tr>`).join('') || '<tr><td colspan="4" class="muted">Belum ada tautan.</td></tr>';
+    $('#urlsTable tbody').innerHTML = (data.urls || []).map((u) => {
+      const full = shortUrl(u);
+      return `<tr>
+        <td class="chkcol"><input type="checkbox" class="rowchk" data-id="${u.id}" data-url="${esc(full)}" /></td>
+        <td><code>${esc(full)}</code></td>
+        <td class="muted ellipsis">${esc(u.target_url)}</td>
+        <td>${badge(u.state)}</td>
+        <td class="actions">
+          <button class="btn small" data-copy="${esc(full)}" title="Salin"><i class="fa-solid fa-copy"></i></button>
+          <button class="btn small" data-edit="${u.id}" data-slug="${esc(u.slug)}" data-target="${esc(u.target_url)}" data-status="${u.redirect_status}" title="Edit"><i class="fa-solid fa-pen"></i></button>
+          <button class="btn small danger" data-del="${u.id}" title="Hapus"><i class="fa-solid fa-trash"></i></button>
+        </td></tr>`;
+    }).join('') || '<tr><td colspan="5" class="muted">Belum ada tautan.</td></tr>';
+    $('#checkAll').checked = false; updateBulkBar();
   }
+
+  const selected = () => [...document.querySelectorAll('.rowchk:checked')];
+  function updateBulkBar() {
+    const n = selected().length;
+    $('#bulkBar').classList.toggle('hidden', n === 0);
+    $('#selCount').textContent = `${n} dipilih`;
+  }
+
   $('#createUrlBtn').onclick = async () => {
     const domainId = Number($('#domainSelect').value);
     if (!domainId) return toast('Pilih domain aktif dulu.', 'warn');
@@ -273,14 +292,55 @@ async function viewUrls(el) {
     if (status === 202) { toast(`Antre ${data.created.length} tautan.`, 'ok'); $('#bulkInput').value = ''; setTimeout(loadUrls, 1800); }
     else toast(data.error?.message || 'Gagal.', 'err');
   };
+
   $('#urlsTable').onclick = (e) => {
-    const id = e.target.closest('button[data-del]')?.dataset.del; if (!id) return;
-    confirmDialog('Hapus tautan ini?', async () => {
-      const { status } = await api.del(`/urls/${id}`);
+    const copyBtn = e.target.closest('button[data-copy]');
+    if (copyBtn) { navigator.clipboard.writeText(copyBtn.dataset.copy); return toast('Tautan disalin.', 'ok'); }
+    const editBtn = e.target.closest('button[data-edit]');
+    if (editBtn) return openEdit(editBtn.dataset);
+    const delBtn = e.target.closest('button[data-del]');
+    if (delBtn) return confirmDialog('Hapus tautan ini?', async () => {
+      const { status } = await api.del(`/urls/${delBtn.dataset.del}`);
       toast(status === 202 ? 'Penghapusan masuk antrean.' : 'Gagal menghapus.', status === 202 ? 'ok' : 'err');
       setTimeout(loadUrls, 1500);
     });
   };
+  $('#urlsTable').addEventListener('change', (e) => { if (e.target.classList.contains('rowchk')) updateBulkBar(); });
+  $('#checkAll').onchange = (e) => { document.querySelectorAll('.rowchk').forEach((c) => { c.checked = e.target.checked; }); updateBulkBar(); };
+
+  $('#bulkCopy').onclick = () => {
+    const urls = selected().map((c) => c.dataset.url);
+    if (!urls.length) return;
+    navigator.clipboard.writeText(urls.join('\n'));
+    toast(`${urls.length} tautan disalin.`, 'ok');
+  };
+  $('#bulkDelete').onclick = () => {
+    const ids = selected().map((c) => c.dataset.id);
+    if (!ids.length) return;
+    confirmDialog(`Hapus ${ids.length} tautan terpilih?`, async () => {
+      await Promise.all(ids.map((id) => api.del(`/urls/${id}`)));
+      toast(`${ids.length} tautan dihapus (antre).`, 'ok');
+      setTimeout(loadUrls, 1600);
+    });
+  };
+
+  function openEdit(d) {
+    openModal(`<h3>Edit tautan</h3>
+      <label class="lbl">Slug</label><input id="edSlug" value="${esc(d.slug)}" />
+      <label class="lbl">Tujuan</label><input id="edTarget" type="url" value="${esc(d.target)}" />
+      <label class="lbl">Status redirect</label>
+      <select id="edStatus">${[301, 302, 307, 308].map((s) => `<option value="${s}" ${String(s) === String(d.status) ? 'selected' : ''}>${s}</option>`).join('')}</select>
+      <div class="row end"><button class="btn" data-no>Batal</button><button class="btn primary" data-save>Simpan</button></div>`);
+    $('#modalRoot [data-no]').onclick = closeModal;
+    $('#modalRoot [data-save]').onclick = async () => {
+      const body = { slug: $('#edSlug').value.trim(), target: $('#edTarget').value.trim(), redirectStatus: Number($('#edStatus').value) };
+      const { status, data } = await api.patch(`/urls/${d.edit}`, body);
+      closeModal();
+      toast(status === 202 ? 'Perubahan masuk antrean.' : (data.error?.message || 'Gagal menyimpan.'), status === 202 ? 'ok' : 'err');
+      setTimeout(loadUrls, 1600);
+    };
+  }
+
   $('#filterDomain').onchange = loadUrls;
   loadUrls();
 }
@@ -318,8 +378,8 @@ function viewHelp(el) {
     <h3>2. Hubungkan token</h3>
     <p>Buka menu <strong>Domain</strong>, tempel token, klik <em>Validasi & simpan</em>.</p>
     <h3>3. Daftarkan & aktifkan domain</h3>
-    <p>Muat zona, pilih domain, daftarkan, lalu <em>Aktifkan</em>. Status berubah dari
-       <em>terdaftar → aktif</em>.</p>
+    <p>Ketik nama domain Anda lalu <em>Daftarkan</em>, kemudian <em>Aktifkan</em>. Status berubah
+       dari <em>terdaftar → aktif</em>.</p>
     <h3>4. Buat tautan pendek</h3>
     <p>Di menu <strong>Tautan</strong>, pilih domain aktif, isi slug & tujuan, klik <em>Buat</em>.
        Permintaan diantrekan dan ditulis ke Cloudflare sebagai redirect 302.</p>
