@@ -415,11 +415,7 @@ async function viewSecurity(el) {
     $('#sysVer').textContent = v.version || 'unknown';
     if (v.otaEnabled === false) $('#otaBtn').disabled = true;
   })();
-  $('#otaBtn').onclick = () => confirmDialog('Tarik pembaruan terbaru & muat ulang panel?', async () => {
-    const { status, data } = await api.post('/system/update');
-    if (status === 200) toast('Pembaruan dimulai. Panel dimuat ulang sebentar lagi…', 'ok');
-    else toast(data.error?.message || 'Gagal memulai pembaruan.', 'err');
-  });
+  $('#otaBtn').onclick = () => confirmDialog('Tarik pembaruan terbaru & muat ulang panel?', runOtaUpdate);
 
   $('#changePwBtn').onclick = async () => {
     const currentPassword = $('#curPw').value;
@@ -476,6 +472,58 @@ async function viewContact(el) {
     <p class="muted">${esc(c.note || 'Hubungi kami untuk bantuan.')}</p>
     <div class="contact-list">${rows.join('') || '<span class="muted">Informasi kontak belum diatur.</span>'}</div>
   </div>`;
+}
+
+// ---- OTA update (blocking overlay + auto-reload after restart) -----------
+function showOtaOverlay() {
+  if ($('#otaOverlay')) return;
+  const o = document.createElement('div');
+  o.id = 'otaOverlay'; o.className = 'ota-overlay';
+  o.innerHTML = `<div class="ota-box">
+    <div class="spinner"></div>
+    <h3>Memperbarui panel…</h3>
+    <p class="muted" id="otaText">Mohon tunggu. <strong>Jangan menutup atau menyegarkan halaman ini.</strong></p>
+  </div>`;
+  document.body.appendChild(o);
+}
+function setOtaText(html) { const el = $('#otaText'); if (el) el.innerHTML = html; }
+
+async function runOtaUpdate() {
+  // Record the current process boot id so we can detect the restart.
+  let boot0 = null;
+  try { const r = await api.get('/system/version'); boot0 = r.data.bootId; } catch { /* ignore */ }
+
+  showOtaOverlay();
+  window.onbeforeunload = () => 'Pembaruan sedang berlangsung.';
+
+  const { status, data } = await api.post('/system/update');
+  if (status !== 200) {
+    window.onbeforeunload = null; $('#otaOverlay')?.remove();
+    return toast(data.error?.message || 'Gagal memulai pembaruan.', 'err');
+  }
+
+  const started = Date.now();
+  const poll = async () => {
+    if (Date.now() - started > 120000) {
+      window.onbeforeunload = null;
+      setOtaText('Memakan waktu lebih lama dari biasa. Silakan <strong>segarkan halaman</strong> secara manual.');
+      return;
+    }
+    let bid = null;
+    try {
+      const r = await fetch('/api/system/version', { cache: 'no-store' });
+      if (r.ok) { bid = (await r.json()).bootId; }
+    } catch { /* server restarting — keep waiting */ }
+    if (bid && boot0 && bid !== boot0) {
+      window.onbeforeunload = null;
+      setOtaText('Pembaruan selesai. Memuat ulang…');
+      setTimeout(() => window.location.reload(), 1200);
+      return;
+    }
+    setTimeout(poll, 2500);
+  };
+  setOtaText('Menarik kode terbaru &amp; memasang dependensi… <strong>Jangan tutup halaman.</strong>');
+  setTimeout(poll, 5000); // give git pull + npm install time before the restart
 }
 
 // ---- Global broadcast (from Master) --------------------------------------

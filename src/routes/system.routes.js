@@ -1,6 +1,7 @@
 'use strict';
 const express = require('express');
 const path = require('path');
+const crypto = require('crypto');
 const { execFile, spawn } = require('child_process');
 const { requireSession } = require('../session');
 const logger = require('../logger');
@@ -11,11 +12,13 @@ router.use(requireSession);
 const APP_DIR = process.env.APP_DIR || path.join(__dirname, '..', '..');
 const PM2_NAME = process.env.PM2_NAME || 'node-panel';
 const OTA_ENABLED = (process.env.OTA_ENABLED || 'true') !== 'false';
+// Unique per process start — lets the client detect when the panel has restarted.
+const BOOT_ID = crypto.randomBytes(8).toString('hex');
 
-/** GET /api/system/version — current git commit + whether OTA is enabled. */
+/** GET /api/system/version — git commit, OTA flag, and this process's boot id. */
 router.get('/system/version', (req, res) => {
   execFile('git', ['-C', APP_DIR, 'rev-parse', '--short', 'HEAD'], { timeout: 5000 }, (err, out) => {
-    res.json({ version: err ? 'unknown' : String(out).trim(), otaEnabled: OTA_ENABLED });
+    res.json({ version: err ? 'unknown' : String(out).trim(), otaEnabled: OTA_ENABLED, bootId: BOOT_ID });
   });
 });
 

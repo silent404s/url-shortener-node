@@ -140,6 +140,13 @@ details { margin:.6rem 0; } details summary { cursor:pointer; color:var(--accent
 .toast.warn { border-left-color:var(--warn); } .toast.warn i { color:var(--warn); }
 .toast.info i { color:var(--accent); }
 
+/* ---- OTA update overlay ---- */
+.ota-overlay { position:fixed; inset:0; background:rgba(5,9,18,.82); display:grid; place-items:center; z-index:300; padding:1rem; }
+.ota-box { background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:2rem; max-width:380px; text-align:center; box-shadow:var(--shadow); }
+.ota-box h3 { margin:.8rem 0 .4rem; }
+.spinner { width:46px; height:46px; margin:0 auto; border:4px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.9s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
 /* ---- Modal ---- */
 .modal { position:fixed; inset:0; background:rgba(0,0,0,.6); display:grid; place-items:center; padding:1rem; z-index:150; }
 .modal-card { background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:1.5rem; max-width:440px; width:100%; box-shadow:var(--shadow); }
