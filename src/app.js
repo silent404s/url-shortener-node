@@ -5,7 +5,6 @@ const helmet = require('helmet');
 const compression = require('compression');
 const cookieParser = require('cookie-parser');
 const pinoHttp = require('pino-http');
-const rateLimit = require('express-rate-limit');
 const logger = require('./logger');
 
 const pages = require('./routes/pages.routes');
@@ -47,11 +46,8 @@ function createApp() {
   );
   app.get('/favicon.ico', (req, res) => res.redirect(301, '/static/favicon.svg'));
 
-  // Rate-limit login attempts.
-  const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30 });
-
   app.use('/', pages);
-  app.use('/api', loginLimiter, auth);
+  app.use('/api', auth);   // login limiter is applied per-endpoint inside auth.routes
   app.use('/api', proxy);
 
   app.use((req, res) => res.status(404).render('404'));

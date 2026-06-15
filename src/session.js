@@ -21,6 +21,16 @@ function clearSession(res) {
   res.clearCookie(config.session.cookieName);
 }
 
+// ---- Pre-auth cookie (between the password step and the 2FA step) --------
+const PRE_COOKIE = 'node_pre';
+function setPreauth(res, token) {
+  res.cookie(PRE_COOKIE, token, {
+    httpOnly: true, sameSite: 'lax', secure: config.env === 'production', maxAge: 10 * 60 * 1000,
+  });
+}
+function getPreauth(req) { return req.cookies?.[PRE_COOKIE]; }
+function clearPreauth(res) { res.clearCookie(PRE_COOKIE); }
+
 /** Gate panel pages/API behind a valid local session cookie. */
 function requireSession(req, res, next) {
   const token = req.cookies?.[config.session.cookieName];
@@ -40,4 +50,7 @@ function redirectOrJson(req, res) {
   return res.redirect(config.loginPath);
 }
 
-module.exports = { issueSession, clearSession, requireSession };
+module.exports = {
+  issueSession, clearSession, requireSession,
+  setPreauth, getPreauth, clearPreauth,
+};

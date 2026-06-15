@@ -85,4 +85,23 @@ async function getBranding() {
   }
 }
 
-module.exports = { forward, validateLicense, getBranding, http };
+/** Normalize an axios call to { status, data } (license headers auto-attached). */
+async function call(fn) {
+  try { const res = await fn(); return { status: res.status, data: res.data }; }
+  catch (err) {
+    if (err.response) return { status: err.response.status, data: err.response.data };
+    return { status: 503, data: { error: { code: 'MASTER_UNREACHABLE', message: 'Master tidak dapat dihubungi.' } } };
+  }
+}
+const bearer = (t) => ({ headers: { Authorization: `Bearer ${t}` } });
+
+// ---- 2FA login flow (Model A: email+password then TOTP) ------------------
+const authPassword = (email, password) => call(() => http.post('/node/auth/password', { email, password }));
+const authTotp = (preauth, code) => call(() => http.post('/node/auth/totp', { code }, bearer(preauth)));
+const setup2fa = (preauth) => call(() => http.get('/node/2fa/setup', bearer(preauth)));
+const enable2fa = (preauth, code) => call(() => http.post('/node/2fa/enable', { code }, bearer(preauth)));
+
+module.exports = {
+  forward, validateLicense, getBranding, http,
+  authPassword, authTotp, setup2fa, enable2fa,
+};

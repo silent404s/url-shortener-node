@@ -2,16 +2,44 @@
 <main class="auth-wrap">
   <div class="card auth-card">
     <div class="auth-brand"><i class="fa-solid fa-bolt"></i> Shortix</div>
-    <h1>Masuk ke Panel</h1>
-    <p class="muted">Panel ini terhubung dengan lisensi yang dikeluarkan server Master.
-      Klik tombol di bawah untuk memvalidasi lisensi dan masuk.</p>
-    <button id="loginBtn" class="btn primary block">
-      <i class="fa-solid fa-right-to-bracket"></i> Validasi lisensi &amp; masuk
-    </button>
+
+    <!-- Step 1: credentials -->
+    <section id="stepCred">
+      <h1>Masuk ke Panel</h1>
+      <p class="muted">Masuk dengan akun yang Anda daftarkan di situs Master.</p>
+      <input type="email" id="email" placeholder="Email" autocomplete="username" />
+      <input type="password" id="password" placeholder="Kata sandi" autocomplete="current-password" />
+      <button class="btn primary block" id="credBtn"><i class="fa-solid fa-arrow-right"></i> Lanjut</button>
+    </section>
+
+    <!-- Step 2a: TOTP -->
+    <section id="stepTotp" class="hidden">
+      <h1>Verifikasi 2FA</h1>
+      <p class="muted">Masukkan 6 digit dari Google Authenticator (atau kode pemulihan).</p>
+      <input type="text" id="totpCode" inputmode="numeric" placeholder="123456" autocomplete="one-time-code" />
+      <button class="btn primary block" id="totpBtn"><i class="fa-solid fa-unlock"></i> Masuk</button>
+    </section>
+
+    <!-- Step 2b: enrollment -->
+    <section id="stepEnroll" class="hidden">
+      <h1>Aktifkan 2FA</h1>
+      <p class="muted">Pindai QR ini di Google Authenticator, lalu masukkan kodenya.</p>
+      <img id="qrImg" alt="QR 2FA" class="qr" />
+      <p class="muted small">Kunci manual: <code id="secret"></code></p>
+      <input type="text" id="enrollCode" inputmode="numeric" placeholder="123456" />
+      <button class="btn primary block" id="enrollBtn"><i class="fa-solid fa-shield-halved"></i> Aktifkan &amp; masuk</button>
+    </section>
+
+    <!-- Step 3: recovery codes -->
+    <section id="stepRecovery" class="hidden">
+      <h1>Simpan kode pemulihan</h1>
+      <p class="muted">Simpan di tempat aman. Tiap kode sekali pakai bila Anda kehilangan perangkat 2FA.</p>
+      <pre id="recoveryList"></pre>
+      <button class="btn primary block" id="recoveryBtn"><i class="fa-solid fa-check"></i> Sudah saya simpan — lanjut</button>
+    </section>
+
     <p id="loginMsg" class="msg"></p>
-    <p class="muted small">
-      Butuh bantuan? Lihat <a href="/agreement">Ketentuan Layanan</a>.
-    </p>
+    <p class="muted small"><a href="/agreement">Ketentuan Layanan</a></p>
   </div>
 </main>
 <script src="/static/js/login.js"></script>
