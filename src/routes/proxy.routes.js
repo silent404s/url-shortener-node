@@ -28,6 +28,10 @@ router.get('/jobs', relay('GET', '/node/jobs'));
 // Master-controlled help/contact/changelog/broadcast content.
 router.get('/site-content', relay('GET', '/public/site-content'));
 
+// Account security (status + change password w/ 2FA).
+router.get('/account/security', relay('GET', '/node/account/security'));
+router.post('/account/change-password', relay('POST', '/node/account/change-password'));
+
 // Cloudflare onboarding (token + zones) — body forwarded, never inspected.
 router.post('/cloudflare/token', relay('POST', '/node/cloudflare/token'));
 router.get('/cloudflare/zones', relay('GET', '/node/cloudflare/zones'));

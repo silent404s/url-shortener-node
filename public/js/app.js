@@ -81,6 +81,7 @@ const ROUTES = {
   domains:   { title: 'Domain', render: viewDomains },
   urls:      { title: 'Tautan', render: viewUrls },
   referral:  { title: 'Referral', render: viewReferral },
+  security:  { title: 'Keamanan', render: viewSecurity },
   help:      { title: 'Bantuan', render: viewHelp },
   changelog: { title: 'Pembaruan', render: viewChangelog },
   contact:   { title: 'Kontak', render: viewContact },
@@ -367,6 +368,40 @@ async function viewReferral(el) {
           || '<tr><td colspan="3" class="muted">Belum ada undangan.</td></tr>'}</tbody></table></div>
     </div>`;
   $('#copyRef').onclick = () => { navigator.clipboard.writeText(data.referralCode || ''); toast('Kode disalin.', 'ok'); };
+}
+
+async function viewSecurity(el) {
+  const { data } = await api.get('/account/security');
+  el.innerHTML = `
+    <div class="card">
+      <h2>Keamanan Akun</h2>
+      <p class="muted">Email: <code>${esc(data.email || '–')}</code></p>
+      <p>Status 2FA: ${data.totpEnabled
+        ? '<span class="badge active">aktif</span>'
+        : '<span class="badge failed">belum aktif</span>'}</p>
+    </div>
+    <div class="card">
+      <h2>Ganti Kata Sandi</h2>
+      <p class="muted small">Perubahan kata sandi wajib diverifikasi dengan kode 2FA (atau kode pemulihan).</p>
+      <label class="lbl">Kata sandi saat ini</label>
+      <input type="password" id="curPw" autocomplete="current-password" />
+      <label class="lbl">Kata sandi baru (min. 10 karakter)</label>
+      <input type="password" id="newPw" autocomplete="new-password" />
+      <label class="lbl">Kode Google Authenticator</label>
+      <input type="text" id="pwCode" inputmode="numeric" placeholder="123456" />
+      <div class="row"><button class="btn primary" id="changePwBtn"><i class="fa-solid fa-key"></i> Simpan</button></div>
+    </div>`;
+
+  $('#changePwBtn').onclick = async () => {
+    const currentPassword = $('#curPw').value;
+    const newPassword = $('#newPw').value;
+    const code = $('#pwCode').value.trim();
+    if (!currentPassword || !newPassword || !code) return toast('Lengkapi semua kolom.', 'warn');
+    if (newPassword.length < 10) return toast('Kata sandi baru minimal 10 karakter.', 'warn');
+    const { status, data } = await api.post('/account/change-password', { currentPassword, newPassword, code });
+    if (status === 200) { toast('Kata sandi berhasil diubah.', 'ok'); $('#curPw').value = $('#newPw').value = $('#pwCode').value = ''; }
+    else toast(data.error?.message || 'Gagal mengubah kata sandi.', 'err');
+  };
 }
 
 function viewHelp(el) {
