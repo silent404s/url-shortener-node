@@ -87,7 +87,9 @@ const ROUTES = {
   contact:   { title: 'Kontak', render: viewContact },
 };
 
+let navToken = 0;
 async function router() {
+  const myToken = ++navToken;
   const key = (location.hash.replace(/^#\//, '') || 'dashboard');
   const route = ROUTES[key] || ROUTES.dashboard;
   $('#pageTitle').textContent = route.title;
@@ -96,8 +98,18 @@ async function router() {
   sidebar.classList.remove('open'); backdrop.classList.remove('show');
   const content = $('#content');
   content.innerHTML = '<div class="loading">Memuat…</div>';
-  try { await route.render(content); }
-  catch (e) { if (e.message !== 'no-session') content.innerHTML = `<div class="card">Terjadi kesalahan memuat halaman.</div>`; }
+  try {
+    await route.render(content);
+  } catch (e) {
+    if (myToken !== navToken) return;            // superseded by a newer navigation
+    if (e && e.message === 'no-session') return; // redirecting to login
+    console.error('[Shortix] gagal memuat view:', e);
+    content.innerHTML = `<div class="card"><h2>Terjadi kesalahan memuat halaman</h2>
+      <p class="muted small" id="errDetail"></p>
+      <button class="btn" id="retryBtn"><i class="fa-solid fa-rotate"></i> Coba lagi</button></div>`;
+    const d = $('#errDetail'); if (d) d.textContent = (e && e.message) ? e.message : String(e);
+    const rb = $('#retryBtn'); if (rb) rb.onclick = () => router();
+  }
 }
 window.addEventListener('hashchange', router);
 
@@ -482,6 +494,8 @@ async function checkBroadcast() {
 }
 
 // ---- Boot ----------------------------------------------------------------
+// Avoid a double initial render: if we set the hash it fires `hashchange`
+// (which calls router); otherwise call router once directly.
 if (!location.hash) location.hash = '#/dashboard';
-router();
+else router();
 checkBroadcast();
