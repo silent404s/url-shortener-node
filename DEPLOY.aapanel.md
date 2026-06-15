@@ -9,6 +9,26 @@ to the Master at `https://machdientu.de.com`.
 
 ---
 
+## ⚡ Quick install (recommended)
+
+After installing **Node.js 20** (aaPanel → App Store → Node.js version manager)
+and getting a license from the Master (step 2 below), run **one command**:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/silent404s/url-shortener-node/main/install.sh -o install.sh
+bash install.sh
+```
+
+The script asks for your domain, Master URL, and license, then handles clone +
+`npm install` + `.env` + PM2 for you. The only manual step left is the reverse
+proxy + SSL (step 6). The detailed manual steps below remain as a reference /
+fallback.
+
+> Requires the `url-shortener-node` repo to be **public** (so the script and
+> `git clone` work without a token). If it's private, clone with a PAT instead.
+
+---
+
 ## 1. Install prerequisites (aaPanel UI)
 
 - **App Store → Node.js version manager** → Node 20 LTS (skip if already done).
