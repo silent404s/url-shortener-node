@@ -390,7 +390,24 @@ async function viewSecurity(el) {
       <label class="lbl">Kode Google Authenticator</label>
       <input type="text" id="pwCode" inputmode="numeric" placeholder="123456" />
       <div class="row"><button class="btn primary" id="changePwBtn"><i class="fa-solid fa-key"></i> Simpan</button></div>
+    </div>
+    <div class="card">
+      <h2>Sistem</h2>
+      <p class="muted small">Versi terpasang: <code id="sysVer">…</code></p>
+      <button class="btn" id="otaBtn"><i class="fa-solid fa-cloud-arrow-down"></i> Update Situs</button>
+      <p class="muted small">Menarik kode terbaru dari repositori lalu memuat ulang panel.</p>
     </div>`;
+
+  (async () => {
+    const { data: v } = await api.get('/system/version');
+    $('#sysVer').textContent = v.version || 'unknown';
+    if (v.otaEnabled === false) $('#otaBtn').disabled = true;
+  })();
+  $('#otaBtn').onclick = () => confirmDialog('Tarik pembaruan terbaru & muat ulang panel?', async () => {
+    const { status, data } = await api.post('/system/update');
+    if (status === 200) toast('Pembaruan dimulai. Panel dimuat ulang sebentar lagi…', 'ok');
+    else toast(data.error?.message || 'Gagal memulai pembaruan.', 'err');
+  });
 
   $('#changePwBtn').onclick = async () => {
     const currentPassword = $('#curPw').value;

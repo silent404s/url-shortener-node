@@ -1,0 +1,40 @@
+<%- include('partials/head', { title: 'Penyiapan · Shortix' }) %>
+<main class="auth-wrap">
+  <div class="card auth-card">
+    <div class="auth-brand"><i class="fa-solid fa-bolt"></i> Shortix</div>
+    <h1>Penyiapan Panel</h1>
+    <p class="muted">Panel ini belum dikonfigurasi. Pilih salah satu cara di bawah.</p>
+
+    <div class="row" style="justify-content:center;gap:.4rem">
+      <button class="btn" id="tabLicense"><i class="fa-solid fa-key"></i> Punya lisensi</button>
+      <button class="btn" id="tabRegister"><i class="fa-solid fa-user-plus"></i> Daftar baru</button>
+    </div>
+
+    <!-- Mode 1: existing license -->
+    <section id="licensePane">
+      <label class="lbl">License Key</label>
+      <input id="licKey" placeholder="00000000-0000-0000-0000-000000000000" autocomplete="off" />
+      <label class="lbl">License Secret</label>
+      <input id="licSecret" type="password" placeholder="••••••••••" autocomplete="off" />
+      <button class="btn primary block" id="saveLic"><i class="fa-solid fa-floppy-disk"></i> Simpan &amp; lanjut</button>
+    </section>
+
+    <!-- Mode 2: register new account -->
+    <section id="registerPane" class="hidden">
+      <label class="lbl">Email</label>
+      <input id="regEmail" type="email" autocomplete="email" />
+      <label class="lbl">Kata sandi (min. 10 karakter)</label>
+      <input id="regPass" type="password" autocomplete="new-password" />
+      <label class="lbl">Kode referral (opsional)</label>
+      <input id="regRef" autocomplete="off" />
+      <label class="checkbox"><input type="checkbox" id="regTos" />
+        <span>Saya setuju <a href="<%= masterUrl %>/agreement" target="_blank" rel="noopener">Ketentuan Layanan</a>.</span></label>
+      <button class="btn primary block" id="doRegister"><i class="fa-solid fa-rocket"></i> Daftar &amp; pasang</button>
+    </section>
+
+    <p id="setupMsg" class="msg"></p>
+  </div>
+</main>
+<script src="/static/js/setup.js"></script>
+</body>
+</html>

@@ -18,11 +18,9 @@ module.exports = {
     timeoutMs: parseInt(process.env.MASTER_TIMEOUT_MS || '20000', 10),
   },
 
-  // License credentials issued at registration (stored ONLY here).
-  license: {
-    key: required('LICENSE_KEY'),
-    secret: required('LICENSE_SECRET'),
-  },
+  // License credentials are resolved at runtime (env or the web setup wizard).
+  // See src/runtimeConfig.js — no longer required at boot so the panel can
+  // start unconfigured and be set up from the browser.
 
   // Secret used to sign the local session cookie for the panel UI.
   session: {

@@ -42,9 +42,9 @@ read -rp "Domain for this panel (folder name, e.g. panel.example.com): " DOMAIN
 read -rp "Master URL [https://machdientu.de.com]: " MASTER_URL
 MASTER_URL="${MASTER_URL:-https://machdientu.de.com}"
 
-read -rp "License Key: " LICENSE_KEY
-read -rp "License Secret: " LICENSE_SECRET
-[ -n "$LICENSE_KEY" ] && [ -n "$LICENSE_SECRET" ] || { c_red "License key & secret are required."; exit 1; }
+echo "License is OPTIONAL here — you can finish setup in the browser (/setup)."
+read -rp "License Key (optional): " LICENSE_KEY
+read -rp "License Secret (optional): " LICENSE_SECRET
 
 read -rp "Local port for this panel [3000]: " PORT_IN
 PORT_VAL="${PORT:-${PORT_IN:-3000}}"
@@ -79,6 +79,9 @@ SESSION_SECRET=$SESSION_SECRET
 SESSION_COOKIE=node_sid
 SESSION_TTL_HOURS=24
 OFFLINE_TOLERANCE_HOURS=24
+PM2_NAME=node-$DOMAIN
+APP_DIR=$TARGET
+OTA_ENABLED=true
 EOF
 chmod 600 .env
 c_green ".env written (SESSION_SECRET generated automatically)."
@@ -106,6 +109,11 @@ echo "     Target URL : http://127.0.0.1:$PORT_VAL"
 echo "     Send domain: \$host"
 echo "3. SSL > Let's Encrypt > issue, then enable Force HTTPS"
 echo
-echo "Then open:  https://$DOMAIN/login   and click 'Validate license & sign in'."
+if [ -z "$LICENSE_KEY" ]; then
+  echo "Then open:  https://$DOMAIN/setup   to finish setup in the browser"
+  echo "            (enter your license, or register a new account)."
+else
+  echo "Then open:  https://$DOMAIN/   to sign in."
+fi
 echo
 echo "Tip: run 'pm2 startup' once to keep the panel running after a reboot."
