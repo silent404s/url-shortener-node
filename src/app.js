@@ -27,9 +27,9 @@ function createApp() {
         directives: {
           defaultSrc: ["'self'"],
           scriptSrc: ["'self'"],
-          // FontAwesome is loaded from cdnjs (CSS + font files).
-          styleSrc: ["'self'", "'unsafe-inline'", 'https://cdnjs.cloudflare.com'],
-          fontSrc: ["'self'", 'https://cdnjs.cloudflare.com'],
+          // FontAwesome (cdnjs) + Google Fonts (Sora/Inter).
+          styleSrc: ["'self'", "'unsafe-inline'", 'https://cdnjs.cloudflare.com', 'https://fonts.googleapis.com'],
+          fontSrc: ["'self'", 'https://cdnjs.cloudflare.com', 'https://fonts.gstatic.com'],
           imgSrc: ["'self'", 'data:'],
           connectSrc: ["'self'"],
         },
