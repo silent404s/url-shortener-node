@@ -1,22 +1,27 @@
-<%- include('partials/head', { title: 'User Agreement' }) %>
-<%- include('partials/nav') %>
-<main class="container prose">
-  <h1>User Agreement / Terms of Service</h1>
-  <p class="muted">Version 2025-01</p>
-  <h2>1. Acceptable use</h2>
-  <p>You may not use this service to create redirects to malware, phishing, or
-     other unlawful destinations. Targets are scanned globally for abuse.</p>
-  <h2>2. Quotas &amp; fair use</h2>
-  <p>Base limits are 100 URLs and 5 active domains per account. Attempting to
-     bypass limits across multiple accounts (e.g. duplicating destinations) may
-     result in suspension.</p>
-  <h2>3. Cloudflare credentials</h2>
-  <p>API tokens you provide are stored encrypted on the Master and used solely to
-     manage redirect rulesets on your behalf.</p>
-  <h2>4. Enforcement</h2>
-  <p>The operator may revoke a license at any time for violations, which removes
-     all associated Cloudflare rules and blocks the affected domains.</p>
-  <h2>5. No warranty</h2>
-  <p>The service is provided "as is" without warranty of any kind.</p>
-</main>
-<%- include('partials/foot') %>
+<%- include('partials/head', { title: 'Ketentuan Layanan · Shortix' }) %>
+<div class="legal">
+  <a class="back" href="/login"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
+  <h1>Ketentuan Layanan</h1>
+  <p class="muted">Versi 2025-01</p>
+
+  <h2>1. Penggunaan yang Wajar</h2>
+  <p>Anda dilarang membuat pengalihan (redirect) menuju malware, phishing, atau tujuan
+     yang melanggar hukum. Seluruh URL tujuan dipindai secara global untuk mendeteksi penyalahgunaan.</p>
+
+  <h2>2. Kuota &amp; Penggunaan</h2>
+  <p>Batas dasar adalah 100 tautan dan 5 domain aktif per akun. Upaya melewati batas
+     dengan banyak akun (mis. menduplikasi tujuan) dapat menyebabkan penangguhan.</p>
+
+  <h2>3. Kredensial Cloudflare</h2>
+  <p>Token API yang Anda berikan disimpan dalam keadaan terenkripsi dan hanya digunakan
+     untuk mengelola aturan pengalihan atas nama Anda.</p>
+
+  <h2>4. Penegakan</h2>
+  <p>Operator dapat mencabut lisensi kapan saja atas pelanggaran, yang otomatis menghapus
+     seluruh aturan Cloudflare terkait dan memblokir domain yang bersangkutan.</p>
+
+  <h2>5. Tanpa Jaminan</h2>
+  <p>Layanan disediakan "sebagaimana adanya" tanpa jaminan dalam bentuk apa pun.</p>
+</div>
+</body>
+</html>

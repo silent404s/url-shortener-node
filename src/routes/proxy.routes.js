@@ -25,6 +25,9 @@ router.get('/me', relay('GET', '/node/me'));
 router.get('/referral', relay('GET', '/node/referral'));
 router.get('/jobs', relay('GET', '/node/jobs'));
 
+// Master-controlled help/contact/changelog/broadcast content.
+router.get('/site-content', relay('GET', '/public/site-content'));
+
 // Cloudflare onboarding (token + zones) — body forwarded, never inspected.
 router.post('/cloudflare/token', relay('POST', '/node/cloudflare/token'));
 router.get('/cloudflare/zones', relay('GET', '/node/cloudflare/zones'));

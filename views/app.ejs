@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Panel · Shortix</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <div class="layout">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="side-brand"><i class="fa-solid fa-bolt"></i> <span>Shortix</span></div>
+      <nav class="side-nav">
+        <a href="#/dashboard" data-route="dashboard"><i class="fa-solid fa-gauge-high"></i><span>Dasbor</span></a>
+        <a href="#/domains" data-route="domains"><i class="fa-solid fa-globe"></i><span>Domain</span></a>
+        <a href="#/urls" data-route="urls"><i class="fa-solid fa-link"></i><span>Tautan</span></a>
+        <a href="#/referral" data-route="referral"><i class="fa-solid fa-gift"></i><span>Referral</span></a>
+        <div class="side-sep">Informasi</div>
+        <a href="#/help" data-route="help"><i class="fa-solid fa-circle-question"></i><span>Bantuan</span></a>
+        <a href="#/changelog" data-route="changelog"><i class="fa-solid fa-bullhorn"></i><span>Pembaruan</span></a>
+        <a href="#/contact" data-route="contact"><i class="fa-solid fa-headset"></i><span>Kontak</span></a>
+      </nav>
+      <div class="side-foot">
+        <button class="side-btn" id="themeToggle"><i class="fa-solid fa-moon"></i><span>Tema</span></button>
+        <button class="side-btn danger" id="logoutBtn"><i class="fa-solid fa-right-from-bracket"></i><span>Keluar</span></button>
+      </div>
+    </aside>
+    <div class="sidebar-backdrop" id="backdrop"></div>
+
+    <!-- Main -->
+    <div class="main">
+      <header class="topbar">
+        <button class="icon-btn" id="menuBtn" aria-label="Menu"><i class="fa-solid fa-bars"></i></button>
+        <h1 id="pageTitle">Dasbor</h1>
+        <div class="topbar-right">
+          <span class="user-chip"><i class="fa-solid fa-user"></i> <%= (typeof user !== 'undefined' && user && user.name) ? user.name : 'Pengguna' %></span>
+        </div>
+      </header>
+
+      <main id="content" class="content"><div class="loading">Memuat…</div></main>
+
+      <footer class="app-footer">
+        <span>Powered by
+          <a href="<%= (typeof branding !== 'undefined' && branding) ? branding.attributionUrl : '#' %>"
+             target="_blank" rel="noopener noreferrer"><%= (typeof branding !== 'undefined' && branding) ? branding.attributionText : 'silent404s' %></a>
+        </span>
+        <a href="/agreement">Ketentuan Layanan</a>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Toasts + modal mount -->
+  <div id="toasts" class="toasts"></div>
+  <div id="modalRoot"></div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

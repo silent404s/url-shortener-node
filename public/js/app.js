@@ -1,15 +1,23 @@
-// Shared panel logic. Each page only runs the blocks whose elements exist.
+/* =====================================================================
+   Shortix Node Panel — single-page app (vanilla JS, no framework).
+   Hash routing, client-side rendering, toasts, theme, Master broadcast.
+   ===================================================================== */
+'use strict';
+
+const $ = (sel, el = document) => el.querySelector(sel);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// ---- API helper ----------------------------------------------------------
 const api = {
   async req(method, path, body) {
     const opts = { method, headers: {} };
-    if (body !== undefined) {
-      opts.headers['Content-Type'] = 'application/json';
-      opts.body = JSON.stringify(body);
-    }
-    const res = await fetch('/api' + path, opts);
-    if (res.status === 401) { window.location.href = '/login'; throw new Error('no session'); }
+    if (body !== undefined) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+    let res;
+    try { res = await fetch('/api' + path, opts); }
+    catch { return { status: 0, data: { error: { message: 'Gagal terhubung ke server.' } } }; }
+    if (res.status === 401) { window.location.href = '/login'; throw new Error('no-session'); }
     const data = await res.json().catch(() => ({}));
-    if (res.status === 503 || data.offline) showOffline();
     return { status: res.status, data };
   },
   get: (p) => api.req('GET', p),
@@ -18,185 +26,350 @@ const api = {
   del: (p) => api.req('DELETE', p),
 };
 
-function showOffline() { const b = document.getElementById('offlineBanner'); if (b) b.classList.remove('hidden'); }
-function badge(state) { return `<span class="badge ${state}">${state}</span>`; }
-function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+// ---- Toast notifications -------------------------------------------------
+function toast(message, type = 'info') {
+  const wrap = $('#toasts');
+  const el = document.createElement('div');
+  const icon = { info: 'circle-info', ok: 'circle-check', warn: 'triangle-exclamation', err: 'circle-xmark' }[type] || 'circle-info';
+  el.className = `toast ${type}`;
+  el.innerHTML = `<i class="fa-solid fa-${icon}"></i><span>${esc(message)}</span>`;
+  wrap.appendChild(el);
+  setTimeout(() => el.classList.add('show'), 10);
+  setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 250); }, 3800);
+}
 
-// ---- Logout (present on all authed pages) --------------------------------
-const logoutBtn = document.getElementById('logoutBtn');
-if (logoutBtn) logoutBtn.addEventListener('click', async (e) => {
-  e.preventDefault();
+// ---- Modal ---------------------------------------------------------------
+function openModal(html) {
+  const root = $('#modalRoot');
+  root.innerHTML = `<div class="modal"><div class="modal-card">${html}</div></div>`;
+  root.querySelector('.modal').addEventListener('click', (e) => { if (e.target.classList.contains('modal')) closeModal(); });
+}
+function closeModal() { $('#modalRoot').innerHTML = ''; }
+function confirmDialog(message, onYes) {
+  openModal(`<h3>Konfirmasi</h3><p class="muted">${esc(message)}</p>
+    <div class="row end"><button class="btn" data-no>Batal</button><button class="btn danger" data-yes>Ya, lanjut</button></div>`);
+  $('#modalRoot [data-no]').onclick = closeModal;
+  $('#modalRoot [data-yes]').onclick = () => { closeModal(); onYes(); };
+}
+
+// ---- Theme ---------------------------------------------------------------
+function applyTheme(t) {
+  document.documentElement.dataset.theme = t;
+  const i = $('#themeToggle i');
+  if (i) i.className = t === 'light' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+}
+applyTheme(localStorage.getItem('theme') || 'dark');
+$('#themeToggle').addEventListener('click', () => {
+  const next = (document.documentElement.dataset.theme === 'light') ? 'dark' : 'light';
+  localStorage.setItem('theme', next); applyTheme(next);
+});
+
+// ---- Sidebar (mobile) ----------------------------------------------------
+const sidebar = $('#sidebar'), backdrop = $('#backdrop');
+$('#menuBtn').addEventListener('click', () => { sidebar.classList.add('open'); backdrop.classList.add('show'); });
+backdrop.addEventListener('click', () => { sidebar.classList.remove('open'); backdrop.classList.remove('show'); });
+
+// ---- Logout --------------------------------------------------------------
+$('#logoutBtn').addEventListener('click', async () => {
   await fetch('/api/logout', { method: 'POST' });
   window.location.href = '/login';
 });
 
-// ---- Dashboard ----------------------------------------------------------
-if (document.getElementById('statsGrid')) {
-  (async () => {
-    const { data: me } = await api.get('/me');
-    if (me.usage) {
-      document.getElementById('urlUsage').textContent = `${me.usage.urlCount} / ${me.quota.urlLimit}`;
-      document.getElementById('domainUsage').textContent = `${me.usage.activeDomains} / ${me.quota.activeDomainLimit}`;
-      document.getElementById('regUsage').textContent = `${me.usage.registeredDomains} / ${me.quota.registeredDomainLimit}`;
-      document.getElementById('refCode').textContent = me.user?.referral_code || '–';
-    }
-    const { data: jobs } = await api.get('/jobs');
-    const tbody = document.querySelector('#jobsTable tbody');
-    tbody.innerHTML = (jobs.jobs || []).map((j) =>
-      `<tr><td>${esc(j.type)}</td><td>${badge(j.status)}</td><td>${j.attempts}</td><td>${new Date(j.created_at).toLocaleString()}</td></tr>`
-    ).join('') || '<tr><td colspan="4" class="muted">No jobs yet</td></tr>';
-  })();
+// ---- Router --------------------------------------------------------------
+const ROUTES = {
+  dashboard: { title: 'Dasbor', render: viewDashboard },
+  domains:   { title: 'Domain', render: viewDomains },
+  urls:      { title: 'Tautan', render: viewUrls },
+  referral:  { title: 'Referral', render: viewReferral },
+  help:      { title: 'Bantuan', render: viewHelp },
+  changelog: { title: 'Pembaruan', render: viewChangelog },
+  contact:   { title: 'Kontak', render: viewContact },
+};
+
+async function router() {
+  const key = (location.hash.replace(/^#\//, '') || 'dashboard');
+  const route = ROUTES[key] || ROUTES.dashboard;
+  $('#pageTitle').textContent = route.title;
+  document.querySelectorAll('.side-nav a').forEach((a) =>
+    a.classList.toggle('active', a.dataset.route === (ROUTES[key] ? key : 'dashboard')));
+  sidebar.classList.remove('open'); backdrop.classList.remove('show');
+  const content = $('#content');
+  content.innerHTML = '<div class="loading">Memuat…</div>';
+  try { await route.render(content); }
+  catch (e) { if (e.message !== 'no-session') content.innerHTML = `<div class="card">Terjadi kesalahan memuat halaman.</div>`; }
+}
+window.addEventListener('hashchange', router);
+
+// ===========================================================================
+//  Views
+// ===========================================================================
+const badge = (s) => {
+  const id = { active: 'aktif', queued: 'antre', updating: 'memperbarui', failed: 'gagal',
+    disabled: 'nonaktif', blocked: 'diblokir', registered: 'terdaftar', completed: 'selesai',
+    processing: 'diproses', dead: 'gagal' }[s] || s;
+  return `<span class="badge ${esc(s)}">${esc(id)}</span>`;
+};
+const stat = (icon, label, value) => `<div class="card stat">
+  <div class="stat-ic"><i class="fa-solid ${icon}"></i></div>
+  <div><span class="stat-label">${label}</span><span class="stat-value">${value}</span></div></div>`;
+
+async function viewDashboard(el) {
+  const { data: me } = await api.get('/me');
+  const { data: jobs } = await api.get('/jobs');
+  const u = me.usage || {}, q = me.quota || {};
+  el.innerHTML = `
+    <div class="grid stats">
+      ${stat('fa-link', 'Tautan terpakai', `${u.urlCount ?? '–'} / ${q.urlLimit ?? '–'}`)}
+      ${stat('fa-globe', 'Domain aktif', `${u.activeDomains ?? '–'} / ${q.activeDomainLimit ?? '–'}`)}
+      ${stat('fa-layer-group', 'Domain terdaftar', `${u.registeredDomains ?? '–'} / ${q.registeredDomainLimit ?? '–'}`)}
+      ${stat('fa-gift', 'Kode referral', esc(me.user?.referral_code || '–'))}
+    </div>
+    <div class="card">
+      <h2>Aktivitas terbaru</h2>
+      <div class="table-wrap"><table class="table">
+        <thead><tr><th>Jenis</th><th>Status</th><th>Percobaan</th><th>Waktu</th></tr></thead>
+        <tbody>${(jobs.jobs || []).map((j) => `<tr>
+          <td>${esc(j.type)}</td><td>${badge(j.status)}</td><td>${j.attempts}</td>
+          <td class="muted">${new Date(j.created_at).toLocaleString('id-ID')}</td></tr>`).join('')
+          || '<tr><td colspan="4" class="muted">Belum ada aktivitas.</td></tr>'}
+        </tbody></table></div>
+    </div>`;
 }
 
-// ---- Domains page -------------------------------------------------------
-if (document.getElementById('domainsTable')) {
-  const tokenMsg = document.getElementById('tokenMsg');
-  let lastCfAccountId = null;
+let _cfAccountId = null;
+async function viewDomains(el) {
+  el.innerHTML = `
+    <div class="card">
+      <h2>1 · Hubungkan Cloudflare</h2>
+      <p class="muted small">Token API dikirim ke Master untuk divalidasi (scope Zone.Read + Single Redirect) dan disimpan terenkripsi. Panel ini tidak menyimpan token Anda.</p>
+      <div class="row">
+        <input type="password" id="cfToken" placeholder="Cloudflare API Token" autocomplete="off" />
+        <input type="text" id="cfLabel" placeholder="Label (opsional)" />
+        <button class="btn primary" id="saveTokenBtn"><i class="fa-solid fa-floppy-disk"></i> Validasi & simpan</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>2 · Pilih domain</h2>
+      <div class="row">
+        <select id="zoneSelect"><option value="">— muat zona —</option></select>
+        <button class="btn" id="loadZonesBtn"><i class="fa-solid fa-rotate"></i> Muat zona</button>
+        <button class="btn primary" id="registerDomainBtn"><i class="fa-solid fa-plus"></i> Daftarkan</button>
+      </div>
+      <p class="muted small">Maks 10 terdaftar, 5 aktif per akun Cloudflare.</p>
+    </div>
+    <div class="card">
+      <h2>Domain Anda</h2>
+      <div class="table-wrap"><table class="table" id="domainsTable">
+        <thead><tr><th>Domain</th><th>Status</th><th>Aksi</th></tr></thead><tbody></tbody></table></div>
+    </div>`;
 
-  document.getElementById('saveTokenBtn').addEventListener('click', async () => {
-    const token = document.getElementById('cfToken').value.trim();
-    const label = document.getElementById('cfLabel').value.trim();
-    if (!token) return;
-    tokenMsg.textContent = 'Validating with Master...'; tokenMsg.className = 'msg';
+  $('#saveTokenBtn').onclick = async () => {
+    const token = $('#cfToken').value.trim(); const label = $('#cfLabel').value.trim();
+    if (!token) return toast('Masukkan token terlebih dahulu.', 'warn');
+    toast('Memvalidasi token ke Master…');
     const { status, data } = await api.post('/cloudflare/token', { token, label });
-    if (status === 201) {
-      tokenMsg.textContent = `Token valid. ${data.zones.length} zone(s) found.`;
-      tokenMsg.className = 'msg ok';
-      lastCfAccountId = data.cfAccountId;
-      document.getElementById('cfToken').value = '';
-      fillZones(data.zones);
-    } else {
-      tokenMsg.textContent = data.error?.message || 'Validation failed';
-      tokenMsg.className = 'msg err';
-    }
-  });
-
-  document.getElementById('loadZonesBtn').addEventListener('click', async () => {
-    const { data } = await api.get('/cloudflare/zones');
-    lastCfAccountId = data.cfAccountId;
-    fillZones(data.zones || []);
-  });
-
+    if (status === 201) { _cfAccountId = data.cfAccountId; fillZones(data.zones || []); $('#cfToken').value = '';
+      toast(`Token valid. ${data.zones.length} zona ditemukan.`, 'ok'); }
+    else toast(data.error?.message || 'Validasi gagal.', 'err');
+  };
+  $('#loadZonesBtn').onclick = async () => {
+    const { status, data } = await api.get('/cloudflare/zones');
+    if (status === 200) { _cfAccountId = data.cfAccountId; fillZones(data.zones || []); toast('Zona dimuat.', 'ok'); }
+    else toast(data.error?.message || 'Gagal memuat zona.', 'err');
+  };
+  $('#registerDomainBtn').onclick = async () => {
+    const opt = $('#zoneSelect').selectedOptions[0];
+    if (!opt || !opt.value || !_cfAccountId) return toast('Muat & pilih zona dulu.', 'warn');
+    const { status, data } = await api.post('/domains', { cfAccountId: _cfAccountId, zoneId: opt.value, zoneName: opt.dataset.name });
+    if (status === 201) { toast('Domain didaftarkan.', 'ok'); loadDomains(); }
+    else toast(data.error?.message || 'Gagal mendaftarkan domain.', 'err');
+  };
   function fillZones(zones) {
-    const sel = document.getElementById('zoneSelect');
-    sel.innerHTML = zones.map((z) => `<option value="${z.zoneId}" data-name="${esc(z.name)}">${esc(z.name)}</option>`).join('');
+    $('#zoneSelect').innerHTML = zones.length
+      ? zones.map((z) => `<option value="${esc(z.zoneId)}" data-name="${esc(z.name)}">${esc(z.name)}</option>`).join('')
+      : '<option value="">(tidak ada zona)</option>';
   }
-
-  document.getElementById('registerDomainBtn').addEventListener('click', async () => {
-    const sel = document.getElementById('zoneSelect');
-    const opt = sel.selectedOptions[0];
-    if (!opt || !lastCfAccountId) return;
-    await api.post('/domains', { cfAccountId: lastCfAccountId, zoneId: opt.value, zoneName: opt.dataset.name });
-    loadDomains();
-  });
-
   async function loadDomains() {
     const { data } = await api.get('/domains');
-    const tbody = document.querySelector('#domainsTable tbody');
-    tbody.innerHTML = (data.domains || []).map((d) => `<tr>
+    $('#domainsTable tbody').innerHTML = (data.domains || []).map((d) => `<tr>
       <td>${esc(d.zone_name)}</td><td>${badge(d.state)}</td>
-      <td>
-        ${d.state === 'registered' ? `<button class="btn small" data-act="activate" data-id="${d.id}">Activate</button>` : ''}
-        ${d.state === 'active' ? `<button class="btn small" data-act="rebuild" data-id="${d.id}">Rebuild</button>` : ''}
-      </td></tr>`).join('') || '<tr><td colspan="3" class="muted">No domains</td></tr>';
+      <td class="actions">
+        ${d.state === 'registered' ? `<button class="btn small" data-act="activate" data-id="${d.id}"><i class="fa-solid fa-play"></i> Aktifkan</button>` : ''}
+        ${d.state === 'active' ? `<button class="btn small" data-act="rebuild" data-id="${d.id}"><i class="fa-solid fa-rotate"></i> Sinkron</button>` : ''}
+      </td></tr>`).join('') || '<tr><td colspan="3" class="muted">Belum ada domain.</td></tr>';
   }
-  document.querySelector('#domainsTable').addEventListener('click', async (e) => {
+  $('#domainsTable').onclick = async (e) => {
     const btn = e.target.closest('button[data-act]'); if (!btn) return;
     const { act, id } = btn.dataset;
-    await api.post(`/domains/${id}/${act}`);
-    btn.textContent = 'Queued…'; btn.disabled = true;
-    setTimeout(loadDomains, 1500);
-  });
+    const { status, data } = await api.post(`/domains/${id}/${act}`);
+    if (status === 202) { toast(act === 'activate' ? 'Aktivasi masuk antrean…' : 'Sinkronisasi masuk antrean…', 'ok'); setTimeout(loadDomains, 2000); }
+    else toast(data.error?.message || 'Gagal.', 'err');
+  };
   loadDomains();
 }
 
-// ---- URLs page ----------------------------------------------------------
-if (document.getElementById('urlsTable')) {
-  async function loadDomainsInto(...selects) {
-    const { data } = await api.get('/domains');
-    const active = (data.domains || []).filter((d) => d.state === 'active');
-    selects.forEach((sel, i) => {
-      const base = i === 0 ? '' : '<option value="">All domains</option>';
-      sel.innerHTML = base + active.map((d) => `<option value="${d.id}">${esc(d.zone_name)}</option>`).join('');
-    });
-  }
+async function viewUrls(el) {
+  el.innerHTML = `
+    <div class="card">
+      <h2>Buat tautan</h2>
+      <div class="row">
+        <select id="domainSelect"></select>
+        <input type="text" id="slugInput" placeholder="slug khusus (opsional)" />
+        <input type="url" id="targetInput" placeholder="https://tujuan.example/halaman" />
+        <button class="btn primary" id="createUrlBtn"><i class="fa-solid fa-plus"></i> Buat</button>
+      </div>
+      <details><summary>Buat massal</summary>
+        <p class="muted small">Satu per baris: <code>slug,https://tujuan</code> (slug opsional: <code>,https://tujuan</code>).</p>
+        <textarea id="bulkInput" rows="5" placeholder="promo,https://example.com/a&#10;,https://example.com/b"></textarea>
+        <button class="btn" id="bulkBtn"><i class="fa-solid fa-layer-group"></i> Buat massal</button>
+      </details>
+      <p id="lockMsg" class="banner hidden"><i class="fa-solid fa-lock"></i> Kuota tercapai — pembuatan tautan dikunci.</p>
+    </div>
+    <div class="card">
+      <h2>Tautan tersimpan</h2>
+      <div class="row"><select id="filterDomain"><option value="">Semua domain</option></select></div>
+      <div class="table-wrap"><table class="table" id="urlsTable">
+        <thead><tr><th>Slug</th><th>Tujuan</th><th>Status</th><th>Aksi</th></tr></thead><tbody></tbody></table></div>
+    </div>`;
 
-  async function refreshLock() {
-    const { data } = await api.get('/me');
-    const locked = data.locked?.urls;
-    document.getElementById('lockMsg').classList.toggle('hidden', !locked);
-    ['createUrlBtn', 'bulkBtn', 'slugInput', 'targetInput', 'bulkInput'].forEach((id) => {
-      const el = document.getElementById(id); if (el) el.disabled = !!locked;
-    });
-  }
+  const { data: dom } = await api.get('/domains');
+  const active = (dom.domains || []).filter((d) => d.state === 'active');
+  const opts = active.map((d) => `<option value="${d.id}">${esc(d.zone_name)}</option>`).join('');
+  $('#domainSelect').innerHTML = opts || '<option value="">(belum ada domain aktif)</option>';
+  $('#filterDomain').innerHTML = '<option value="">Semua domain</option>' + opts;
+
+  const { data: me } = await api.get('/me');
+  const locked = !!me.locked?.urls;
+  $('#lockMsg').classList.toggle('hidden', !locked);
+  ['createUrlBtn', 'bulkBtn', 'slugInput', 'targetInput', 'bulkInput'].forEach((id) => { const x = $('#' + id); if (x) x.disabled = locked; });
 
   async function loadUrls() {
-    const filter = document.getElementById('filterDomain').value;
-    const { data } = await api.get('/urls' + (filter ? `?domainId=${filter}` : ''));
-    const tbody = document.querySelector('#urlsTable tbody');
-    tbody.innerHTML = (data.urls || []).map((u) => `<tr>
-      <td>${esc(u.slug)}</td><td class="muted">${esc(u.target_url)}</td>
-      <td>${u.redirect_status}</td><td>${badge(u.state)}</td>
-      <td><button class="btn small danger" data-del="${u.id}">Delete</button></td>
-    </tr>`).join('') || '<tr><td colspan="5" class="muted">No URLs</td></tr>';
+    const f = $('#filterDomain').value;
+    const { data } = await api.get('/urls' + (f ? `?domainId=${f}` : ''));
+    $('#urlsTable tbody').innerHTML = (data.urls || []).map((u) => `<tr>
+      <td><code>/${esc(u.slug)}</code></td>
+      <td class="muted ellipsis">${esc(u.target_url)}</td>
+      <td>${badge(u.state)}</td>
+      <td class="actions"><button class="btn small danger" data-del="${u.id}"><i class="fa-solid fa-trash"></i></button></td>
+    </tr>`).join('') || '<tr><td colspan="4" class="muted">Belum ada tautan.</td></tr>';
   }
-
-  document.getElementById('createUrlBtn').addEventListener('click', async () => {
-    const msg = document.getElementById('createMsg');
-    const body = {
-      domainId: Number(document.getElementById('domainSelect').value),
-      slug: document.getElementById('slugInput').value.trim() || undefined,
-      target: document.getElementById('targetInput').value.trim(),
-    };
+  $('#createUrlBtn').onclick = async () => {
+    const domainId = Number($('#domainSelect').value);
+    if (!domainId) return toast('Pilih domain aktif dulu.', 'warn');
+    const target = $('#targetInput').value.trim();
+    if (!target) return toast('Masukkan URL tujuan.', 'warn');
+    const body = { domainId, slug: $('#slugInput').value.trim() || undefined, target };
     const { status, data } = await api.post('/urls', body);
-    if (status === 202) {
-      msg.textContent = `Queued: /${data.shortUrl.slug}`; msg.className = 'msg ok';
-      document.getElementById('slugInput').value = '';
-      document.getElementById('targetInput').value = '';
-      setTimeout(loadUrls, 1500);
-    } else { msg.textContent = data.error?.message || 'Failed'; msg.className = 'msg err'; }
-  });
-
-  document.getElementById('bulkBtn').addEventListener('click', async () => {
-    const msg = document.getElementById('createMsg');
-    const items = document.getElementById('bulkInput').value.split('\n')
-      .map((l) => l.trim()).filter(Boolean)
-      .map((line) => { const [slug, target] = line.split(','); return target ? { slug: slug || undefined, target: target.trim() } : null; })
-      .filter(Boolean);
-    if (!items.length) return;
-    const { status, data } = await api.post('/urls/bulk', { domainId: Number(document.getElementById('domainSelect').value), items });
-    msg.textContent = status === 202 ? `Queued ${data.created.length} URLs` : (data.error?.message || 'Failed');
-    msg.className = status === 202 ? 'msg ok' : 'msg err';
-    setTimeout(loadUrls, 1500);
-  });
-
-  document.querySelector('#urlsTable').addEventListener('click', async (e) => {
+    if (status === 202) { toast(`Antre: /${data.shortUrl.slug}`, 'ok'); $('#slugInput').value = ''; $('#targetInput').value = ''; setTimeout(loadUrls, 1800); }
+    else toast(data.error?.message || 'Gagal membuat tautan.', 'err');
+  };
+  $('#bulkBtn').onclick = async () => {
+    const domainId = Number($('#domainSelect').value);
+    if (!domainId) return toast('Pilih domain aktif dulu.', 'warn');
+    const items = $('#bulkInput').value.split('\n').map((l) => l.trim()).filter(Boolean)
+      .map((line) => { const [slug, target] = line.split(','); return target ? { slug: slug || undefined, target: target.trim() } : null; }).filter(Boolean);
+    if (!items.length) return toast('Tidak ada baris valid.', 'warn');
+    const { status, data } = await api.post('/urls/bulk', { domainId, items });
+    if (status === 202) { toast(`Antre ${data.created.length} tautan.`, 'ok'); $('#bulkInput').value = ''; setTimeout(loadUrls, 1800); }
+    else toast(data.error?.message || 'Gagal.', 'err');
+  };
+  $('#urlsTable').onclick = (e) => {
     const id = e.target.closest('button[data-del]')?.dataset.del; if (!id) return;
-    if (!confirm('Delete this URL?')) return;
-    await api.del(`/urls/${id}`);
-    setTimeout(loadUrls, 1200);
-  });
-  document.getElementById('filterDomain').addEventListener('change', loadUrls);
-
-  (async () => {
-    await loadDomainsInto(document.getElementById('domainSelect'), document.getElementById('filterDomain'));
-    await refreshLock();
-    await loadUrls();
-  })();
-}
-
-// ---- Referral page ------------------------------------------------------
-if (document.getElementById('invitedTable')) {
-  (async () => {
-    const { data } = await api.get('/referral');
-    document.getElementById('refCode').textContent = data.referralCode || '–';
-    document.getElementById('invitedCount').textContent = data.invitedCount ?? 0;
-    document.getElementById('bonusUrls').textContent = data.totalBonusUrl ?? 0;
-    document.querySelector('#invitedTable tbody').innerHTML =
-      (data.invited || []).map((r) => `<tr><td>${esc(r.email)}</td><td>${r.bonus_url}</td><td>${new Date(r.created_at).toLocaleDateString()}</td></tr>`).join('')
-      || '<tr><td colspan="3" class="muted">No referrals yet</td></tr>';
-    document.getElementById('copyRefBtn').addEventListener('click', () => {
-      navigator.clipboard.writeText(data.referralCode || '');
+    confirmDialog('Hapus tautan ini?', async () => {
+      const { status } = await api.del(`/urls/${id}`);
+      toast(status === 202 ? 'Penghapusan masuk antrean.' : 'Gagal menghapus.', status === 202 ? 'ok' : 'err');
+      setTimeout(loadUrls, 1500);
     });
-  })();
+  };
+  $('#filterDomain').onchange = loadUrls;
+  loadUrls();
 }
+
+async function viewReferral(el) {
+  const { data } = await api.get('/referral');
+  el.innerHTML = `
+    <div class="card">
+      <h2>Program Referral</h2>
+      <p class="muted">Bagikan kode undangan Anda. Setiap pengguna yang mendaftar menambah kuota Anda.</p>
+      <div class="copyrow"><code id="refCode">${esc(data.referralCode || '–')}</code>
+        <button class="btn small" id="copyRef"><i class="fa-solid fa-copy"></i> Salin</button></div>
+      <div class="grid stats">
+        ${stat('fa-users', 'Pengguna diundang', data.invitedCount ?? 0)}
+        ${stat('fa-link', 'Bonus tautan', data.totalBonusUrl ?? 0)}
+      </div>
+    </div>
+    <div class="card">
+      <h2>Daftar undangan</h2>
+      <div class="table-wrap"><table class="table">
+        <thead><tr><th>Email</th><th>Bonus URL</th><th>Tanggal</th></tr></thead>
+        <tbody>${(data.invited || []).map((r) => `<tr><td>${esc(r.email)}</td><td>${r.bonus_url}</td>
+          <td class="muted">${new Date(r.created_at).toLocaleDateString('id-ID')}</td></tr>`).join('')
+          || '<tr><td colspan="3" class="muted">Belum ada undangan.</td></tr>'}</tbody></table></div>
+    </div>`;
+  $('#copyRef').onclick = () => { navigator.clipboard.writeText(data.referralCode || ''); toast('Kode disalin.', 'ok'); };
+}
+
+function viewHelp(el) {
+  el.innerHTML = `<div class="card prose">
+    <h2>Panduan Singkat</h2>
+    <h3>1. Buat Token API Cloudflare</h3>
+    <p>Cloudflare Dashboard → My Profile → API Tokens → Create Custom Token. Beri izin:
+       <code>Zone · Zone · Read</code> dan <code>Zone · Single Redirect · Edit</code>.</p>
+    <h3>2. Hubungkan token</h3>
+    <p>Buka menu <strong>Domain</strong>, tempel token, klik <em>Validasi & simpan</em>.</p>
+    <h3>3. Daftarkan & aktifkan domain</h3>
+    <p>Muat zona, pilih domain, daftarkan, lalu <em>Aktifkan</em>. Status berubah dari
+       <em>terdaftar → aktif</em>.</p>
+    <h3>4. Buat tautan pendek</h3>
+    <p>Di menu <strong>Tautan</strong>, pilih domain aktif, isi slug & tujuan, klik <em>Buat</em>.
+       Permintaan diantrekan dan ditulis ke Cloudflare sebagai redirect 302.</p>
+    <h3>5. Sinkron / Rebuild</h3>
+    <p>Bila data panel & Cloudflare tidak cocok, tekan <em>Sinkron</em> pada domain.</p>
+  </div>`;
+}
+
+async function viewChangelog(el) {
+  const { data } = await api.get('/site-content');
+  const list = data.changelog || [];
+  el.innerHTML = `<div class="card">
+    <h2>Informasi Pembaruan</h2>
+    ${list.length ? list.map((c) => `<div class="changelog-item">
+      <div class="cl-head"><span class="cl-ver">v${esc(c.version)}</span><span class="muted small">${esc(c.date)}</span></div>
+      <ul>${(c.items || []).map((i) => `<li>${esc(i)}</li>`).join('')}</ul></div>`).join('')
+      : '<p class="muted">Belum ada catatan pembaruan.</p>'}
+  </div>`;
+}
+
+async function viewContact(el) {
+  const { data } = await api.get('/site-content');
+  const c = data.contact || {};
+  const rows = [];
+  if (c.email) rows.push(`<a class="contact-item" href="mailto:${esc(c.email)}"><i class="fa-solid fa-envelope"></i> ${esc(c.email)}</a>`);
+  if (c.telegram) rows.push(`<a class="contact-item" href="${esc(c.telegram)}" target="_blank" rel="noopener"><i class="fa-brands fa-telegram"></i> Telegram</a>`);
+  if (c.whatsapp) rows.push(`<a class="contact-item" href="${esc(c.whatsapp)}" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>`);
+  el.innerHTML = `<div class="card">
+    <h2>Kontak Bantuan</h2>
+    <p class="muted">${esc(c.note || 'Hubungi kami untuk bantuan.')}</p>
+    <div class="contact-list">${rows.join('') || '<span class="muted">Informasi kontak belum diatur.</span>'}</div>
+  </div>`;
+}
+
+// ---- Global broadcast (from Master) --------------------------------------
+async function checkBroadcast() {
+  try {
+    const { data } = await api.get('/site-content');
+    const b = data.broadcast;
+    if (b && b.id && b.message && localStorage.getItem('bc:' + b.id) !== '1') {
+      openModal(`<div class="bc bc-${esc(b.level || 'info')}">
+        <h3><i class="fa-solid fa-bullhorn"></i> ${esc(b.title || 'Pengumuman')}</h3>
+        <p>${esc(b.message)}</p>
+        <div class="row end"><button class="btn primary" id="bcClose">Mengerti</button></div></div>`);
+      $('#bcClose').onclick = () => { localStorage.setItem('bc:' + b.id, '1'); closeModal(); };
+    }
+  } catch { /* ignore */ }
+}
+
+// ---- Boot ----------------------------------------------------------------
+if (!location.hash) location.hash = '#/dashboard';
+router();
+checkBroadcast();

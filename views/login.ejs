@@ -1,14 +1,16 @@
-<%- include('partials/head', { title: 'Login' }) %>
+<%- include('partials/head', { title: 'Masuk · Shortix' }) %>
 <main class="auth-wrap">
   <div class="card auth-card">
-    <h1>⚡ Shortener Panel</h1>
-    <p class="muted">This panel is bound to a license issued by the Master server.
-      Click below to validate your license and sign in.</p>
-    <button id="loginBtn" class="btn primary">Validate license &amp; sign in</button>
+    <div class="auth-brand"><i class="fa-solid fa-bolt"></i> Shortix</div>
+    <h1>Masuk ke Panel</h1>
+    <p class="muted">Panel ini terhubung dengan lisensi yang dikeluarkan server Master.
+      Klik tombol di bawah untuk memvalidasi lisensi dan masuk.</p>
+    <button id="loginBtn" class="btn primary block">
+      <i class="fa-solid fa-right-to-bracket"></i> Validasi lisensi &amp; masuk
+    </button>
     <p id="loginMsg" class="msg"></p>
     <p class="muted small">
-      Need help? See the <a href="/help">setup tutorial</a> or
-      <a href="/agreement">User Agreement</a>.
+      Butuh bantuan? Lihat <a href="/agreement">Ketentuan Layanan</a>.
     </p>
   </div>
 </main>
