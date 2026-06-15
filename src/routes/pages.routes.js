@@ -1,12 +1,14 @@
 'use strict';
 const express = require('express');
+const config = require('../config');
 const { requireSession } = require('../session');
 const { getBranding } = require('../masterClient');
 
 const router = express.Router();
 
-// Make the Master-controlled footer attribution available to every view.
+// Make the Master-controlled footer attribution + login path available to views.
 router.use(async (req, res, next) => {
+  res.locals.loginPath = config.loginPath;
   try {
     res.locals.branding = await getBranding();
   } catch {
@@ -15,8 +17,8 @@ router.use(async (req, res, next) => {
   next();
 });
 
-// Public pages.
-router.get('/login', (req, res) => res.render('login'));
+// Public pages. Login is served at the configurable (secret) path.
+router.get(config.loginPath, (req, res) => res.render('login'));
 router.get('/agreement', (req, res) => res.render('agreement'));
 
 // Authenticated SPA shell — client-side hash routing handles the sections.

@@ -34,4 +34,13 @@ module.exports = {
   // Offline tolerance: how long a cached license snapshot stays valid if the
   // Master is unreachable.
   offlineToleranceHours: parseInt(process.env.OFFLINE_TOLERANCE_HOURS || '24', 10),
+
+  // Secret/obscure login path to deter drive-by access to the login page.
+  // Set LOGIN_PATH to something unguessable, e.g. /masuk-7f3a9c21.
+  // Must start with "/". Defaults to /login for backward compatibility.
+  loginPath: (() => {
+    let p = process.env.LOGIN_PATH || '/login';
+    if (!p.startsWith('/')) p = '/' + p;
+    return p;
+  })(),
 };

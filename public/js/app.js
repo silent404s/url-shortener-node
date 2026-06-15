@@ -16,7 +16,7 @@ const api = {
     let res;
     try { res = await fetch('/api' + path, opts); }
     catch { return { status: 0, data: { error: { message: 'Gagal terhubung ke server.' } } }; }
-    if (res.status === 401) { window.location.href = '/login'; throw new Error('no-session'); }
+    if (res.status === 401) { window.location.href = '/'; throw new Error('no-session'); }
     const data = await res.json().catch(() => ({}));
     return { status: res.status, data };
   },
@@ -72,7 +72,7 @@ backdrop.addEventListener('click', () => { sidebar.classList.remove('open'); bac
 // ---- Logout --------------------------------------------------------------
 $('#logoutBtn').addEventListener('click', async () => {
   await fetch('/api/logout', { method: 'POST' });
-  window.location.href = '/login';
+  window.location.href = '/'; // server redirects to the (secret) login path
 });
 
 // ---- Router --------------------------------------------------------------
