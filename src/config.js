@@ -26,7 +26,9 @@ module.exports = {
   session: {
     secret: required('SESSION_SECRET'),
     cookieName: process.env.SESSION_COOKIE || 'node_sid',
-    ttlHours: parseInt(process.env.SESSION_TTL_HOURS || '24', 10),
+    ttlHours: parseInt(process.env.SESSION_TTL_HOURS || '8', 10),
+    // Auto-logout after this many minutes of inactivity (client-enforced).
+    idleMinutes: parseInt(process.env.SESSION_IDLE_MINUTES || '30', 10),
   },
 
   // Offline tolerance: how long a cached license snapshot stays valid if the

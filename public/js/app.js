@@ -729,6 +729,21 @@ async function checkBroadcast() {
   } catch { /* ignore */ }
 }
 
+// ---- Idle auto-logout ----------------------------------------------------
+(() => {
+  const meta = document.querySelector('meta[name="idle-minutes"]');
+  const mins = Math.max(1, parseInt(meta?.content || '30', 10));
+  let timer;
+  const logoutIdle = async () => {
+    try { await fetch('/api/logout', { method: 'POST' }); } catch { /* ignore */ }
+    window.location.href = '/';
+  };
+  const reset = () => { clearTimeout(timer); timer = setTimeout(logoutIdle, mins * 60 * 1000); };
+  ['click', 'keydown', 'mousemove', 'touchstart', 'scroll'].forEach((e) =>
+    document.addEventListener(e, reset, { passive: true }));
+  reset();
+})();
+
 // ---- Boot ----------------------------------------------------------------
 // Avoid a double initial render: if we set the hash it fires `hashchange`
 // (which calls router); otherwise call router once directly.

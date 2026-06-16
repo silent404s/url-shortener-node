@@ -9,6 +9,7 @@ const router = express.Router();
 // Make the Master-controlled footer attribution + login path available to views.
 router.use(async (req, res, next) => {
   res.locals.loginPath = config.loginPath;
+  res.locals.idleMinutes = config.session.idleMinutes;
   try {
     res.locals.branding = await getBranding();
   } catch {

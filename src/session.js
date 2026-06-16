@@ -1,11 +1,18 @@
 'use strict';
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const config = require('./config');
 
-/** Issue a signed session cookie after a successful license validation. */
+// In-memory single-active-session registry: uid -> current sid.
+// A new login supersedes older sessions; cleared on restart (re-login).
+const activeSessions = new Map();
+
+/** Issue a signed session cookie after a successful login. */
 function issueSession(res, snapshot) {
+  const sid = crypto.randomBytes(12).toString('hex');
+  activeSessions.set(String(snapshot.userId), sid);
   const token = jwt.sign(
-    { uid: snapshot.userId, lid: snapshot.licenseId, name: snapshot.displayName },
+    { uid: snapshot.userId, lid: snapshot.licenseId, name: snapshot.displayName, sid },
     config.session.secret,
     { expiresIn: `${config.session.ttlHours}h` }
   );
@@ -36,7 +43,10 @@ function requireSession(req, res, next) {
   const token = req.cookies?.[config.session.cookieName];
   if (!token) return redirectOrJson(req, res);
   try {
-    req.session = jwt.verify(token, config.session.secret);
+    const payload = jwt.verify(token, config.session.secret);
+    // Single active session: only the most recent login's sid is valid.
+    if (activeSessions.get(String(payload.uid)) !== payload.sid) return redirectOrJson(req, res);
+    req.session = payload;
     next();
   } catch {
     return redirectOrJson(req, res);
