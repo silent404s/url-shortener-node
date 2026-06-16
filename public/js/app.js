@@ -720,13 +720,23 @@ async function checkBroadcast() {
   try {
     const { data } = await api.get('/site-content');
     const b = data.broadcast;
-    if (b && b.id && b.message && localStorage.getItem('bc:' + b.id) !== '1') {
-      openModal(`<div class="bc bc-${esc(b.level || 'info')}">
-        <h3><i class="fa-solid fa-bullhorn"></i> ${esc(b.title || 'Pengumuman')}</h3>
-        <p>${esc(b.message)}</p>
-        <div class="row end"><button class="btn primary" id="bcClose">Mengerti</button></div></div>`);
-      $('#bcClose').onclick = () => { localStorage.setItem('bc:' + b.id, '1'); closeModal(); };
-    }
+    if (!(b && b.id && b.message)) return;
+    // Shows on every refresh by default; only hidden if the user chose to
+    // snooze THIS broadcast for 1 hour.
+    const snoozeUntil = Number(localStorage.getItem('bc-snooze:' + b.id) || 0);
+    if (Date.now() < snoozeUntil) return;
+    openModal(`<div class="bc bc-${esc(b.level || 'info')}">
+      <h3><i class="fa-solid fa-bullhorn"></i> ${esc(b.title || 'Pengumuman')}</h3>
+      <p>${esc(b.message)}</p>
+      <label class="check"><input type="checkbox" id="bcSnooze" />
+        <span>Jangan tampilkan notifikasi ini selama 1 jam</span></label>
+      <div class="row end"><button class="btn primary" id="bcClose">Tutup</button></div></div>`);
+    $('#bcClose').onclick = () => {
+      if ($('#bcSnooze').checked) {
+        localStorage.setItem('bc-snooze:' + b.id, String(Date.now() + 3600 * 1000));
+      }
+      closeModal();
+    };
   } catch { /* ignore */ }
 }
 
