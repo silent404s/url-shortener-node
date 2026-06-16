@@ -716,9 +716,10 @@ async function checkBroadcast() {
     openModal(`<div class="bc bc-${esc(b.level || 'info')}">
       <h3><i class="fa-solid fa-bullhorn"></i> ${esc(b.title || 'Pengumuman')}</h3>
       <p>${esc(b.message)}</p>
-      <label class="check"><input type="checkbox" id="bcSnooze" />
-        <span>Jangan tampilkan notifikasi ini selama 1 jam</span></label>
-      <div class="row end"><button class="btn primary" id="bcClose">Tutup</button></div></div>`);
+      <div class="bc-foot">
+        <label class="bc-snooze"><input type="checkbox" id="bcSnooze" /><span>Sembunyikan 1 jam</span></label>
+        <button class="btn primary" id="bcClose">Tutup</button>
+      </div></div>`);
     $('#bcClose').onclick = () => {
       if ($('#bcSnooze').checked) {
         localStorage.setItem('bc-snooze:' + b.id, String(Date.now() + 3600 * 1000));
