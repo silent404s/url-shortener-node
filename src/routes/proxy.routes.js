@@ -46,6 +46,15 @@ router.post('/domains/:id/rebuild', relay('POST', null, (r) => `/node/domains/${
 router.get('/categories', relay('GET', '/node/categories'));
 router.post('/categories', relay('POST', '/node/categories'));
 
+// Groups (bulk operations + re-root)
+router.get('/groups', relay('GET', '/node/groups'));
+router.post('/groups', relay('POST', '/node/groups'));
+router.delete('/groups/:id', relay('DELETE', null, (r) => `/node/groups/${r.params.id}`));
+router.get('/groups/:id/urls', relay('GET', null, (r) => `/node/groups/${r.params.id}/urls`));
+router.post('/groups/:id/urls', relay('POST', null, (r) => `/node/groups/${r.params.id}/urls`));
+router.delete('/groups/:id/urls/:urlId', relay('DELETE', null, (r) => `/node/groups/${r.params.id}/urls/${r.params.urlId}`));
+router.post('/groups/:id/reroot', relay('POST', null, (r) => `/node/groups/${r.params.id}/reroot`));
+
 // URLs (single + bulk + edit + delete)
 router.get('/urls/top', relay('GET', '/node/urls/top'));
 router.get('/urls', relay('GET', '/node/urls'));

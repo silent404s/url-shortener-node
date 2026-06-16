@@ -80,6 +80,7 @@ const ROUTES = {
   dashboard: { title: 'Dasbor', render: viewDashboard },
   domains:   { title: 'Domain', render: viewDomains },
   urls:      { title: 'Tautan', render: viewUrls },
+  groups:    { title: 'Grup', render: viewGroups },
   referral:  { title: 'Referral', render: viewReferral },
   security:  { title: 'Keamanan', render: viewSecurity },
   help:      { title: 'Bantuan', render: viewHelp },
@@ -233,6 +234,7 @@ async function viewUrls(el) {
       <h2>Buat tautan</h2>
       <div class="row">
         <select id="domainSelect"></select>
+        <select id="groupSelect"><option value="">Tanpa grup</option></select>
         <input type="text" id="slugInput" placeholder="slug khusus (opsional)" />
         <input type="url" id="targetInput" placeholder="https://tujuan.example/halaman" />
         <button class="btn primary" id="createUrlBtn"><i class="fa-solid fa-plus"></i> Buat</button>
@@ -268,6 +270,10 @@ async function viewUrls(el) {
   const opts = active.map((d) => `<option value="${d.id}">${esc(d.zone_name)}</option>`).join('');
   $('#domainSelect').innerHTML = opts || '<option value="">(belum ada domain aktif)</option>';
   $('#filterDomain').innerHTML = '<option value="">Semua domain</option>' + opts;
+
+  const { data: grp } = await api.get('/groups');
+  $('#groupSelect').innerHTML = '<option value="">Tanpa grup</option>' +
+    (grp.groups || []).map((g) => `<option value="${g.id}">${esc(g.name)}</option>`).join('');
 
   const { data: me } = await api.get('/me');
   const locked = !!me.locked?.urls;
@@ -308,7 +314,8 @@ async function viewUrls(el) {
     if (!domainId) return toast('Pilih domain aktif dulu.', 'warn');
     const target = $('#targetInput').value.trim();
     if (!target) return toast('Masukkan URL tujuan.', 'warn');
-    const body = { domainId, slug: $('#slugInput').value.trim() || undefined, target };
+    const groupId = $('#groupSelect').value ? Number($('#groupSelect').value) : undefined;
+    const body = { domainId, groupId, slug: $('#slugInput').value.trim() || undefined, target };
     const { status, data } = await api.post('/urls', body);
     if (status === 202) { toast(`Antre: /${data.shortUrl.slug}`, 'ok'); $('#slugInput').value = ''; $('#targetInput').value = ''; setTimeout(loadUrls, 1800); }
     else toast(data.error?.message || 'Gagal membuat tautan.', 'err');
@@ -374,6 +381,123 @@ async function viewUrls(el) {
 
   $('#filterDomain').onchange = loadUrls;
   loadUrls();
+}
+
+let _openGroup = null;
+async function viewGroups(el) {
+  el.innerHTML = `
+    <div class="card">
+      <h2>Grup Tautan</h2>
+      <p class="muted small">Kumpulkan beberapa short URL ke dalam grup, lalu ubah root tujuannya sekaligus (path &amp; param tiap tautan tetap).</p>
+      <div class="row">
+        <input type="text" id="groupName" placeholder="Nama grup baru" />
+        <button class="btn primary" id="createGroupBtn"><i class="fa-solid fa-plus"></i> Buat grup</button>
+      </div>
+      <div class="table-wrap"><table class="table" id="groupsTable">
+        <thead><tr><th>Nama</th><th>Jumlah tautan</th><th>Aksi</th></tr></thead><tbody></tbody></table></div>
+    </div>
+    <div class="card hidden" id="groupDetail"></div>`;
+
+  $('#createGroupBtn').onclick = async () => {
+    const name = $('#groupName').value.trim();
+    if (!name) return toast('Isi nama grup.', 'warn');
+    const { status, data } = await api.post('/groups', { name });
+    if (status === 201) { toast('Grup dibuat.', 'ok'); $('#groupName').value = ''; loadGroups(); }
+    else toast(data.error?.message || 'Gagal.', 'err');
+  };
+
+  async function loadGroups() {
+    const { data } = await api.get('/groups');
+    $('#groupsTable tbody').innerHTML = (data.groups || []).map((g) => `<tr>
+      <td>${esc(g.name)}</td><td>${g.url_count}</td>
+      <td class="actions">
+        <button class="btn small" data-open="${g.id}" data-name="${esc(g.name)}"><i class="fa-solid fa-folder-open"></i> Buka</button>
+        <button class="btn small danger" data-delg="${g.id}"><i class="fa-solid fa-trash"></i></button>
+      </td></tr>`).join('') || '<tr><td colspan="3" class="muted">Belum ada grup.</td></tr>';
+  }
+  $('#groupsTable').onclick = async (e) => {
+    const open = e.target.closest('button[data-open]');
+    const del = e.target.closest('button[data-delg]');
+    if (open) { _openGroup = { id: open.dataset.open, name: open.dataset.name }; openGroup(); }
+    if (del) confirmDialog('Hapus grup ini? (tautan tidak ikut terhapus)', async () => {
+      await api.del(`/groups/${del.dataset.delg}`); toast('Grup dihapus.', 'ok');
+      $('#groupDetail').classList.add('hidden'); loadGroups();
+    });
+  };
+
+  async function openGroup() {
+    const g = _openGroup;
+    const { data } = await api.get(`/groups/${g.id}/urls`);
+    const box = $('#groupDetail');
+    box.classList.remove('hidden');
+    box.innerHTML = `
+      <div class="row" style="justify-content:space-between">
+        <h2 style="margin:0">Grup: ${esc(g.name)}</h2>
+        <div class="row" style="margin:0">
+          <button class="btn" id="addToGroupBtn"><i class="fa-solid fa-plus"></i> Tambah tautan</button>
+          <button class="btn primary" id="rerootBtn"><i class="fa-solid fa-right-left"></i> Ubah root tujuan</button>
+        </div>
+      </div>
+      <div class="table-wrap"><table class="table">
+        <thead><tr><th>Tautan pendek</th><th>Tujuan</th><th style="text-align:right">Klik</th><th>Aksi</th></tr></thead>
+        <tbody>${(data.urls || []).map((u) => `<tr>
+          <td><code>${esc(u.zone_name)}/${esc(u.slug)}</code></td>
+          <td class="muted ellipsis">${esc(u.target_url)}</td>
+          <td style="text-align:right">${(u.clicks || 0).toLocaleString('id-ID')}</td>
+          <td class="actions"><button class="btn small danger" data-rm="${u.id}" title="Keluarkan"><i class="fa-solid fa-xmark"></i></button></td>
+        </tr>`).join('') || '<tr><td colspan="4" class="muted">Grup kosong. Tambahkan tautan.</td></tr>'}
+        </tbody></table></div>`;
+
+    box.querySelector('#rerootBtn').onclick = () => openReroot(g, (data.urls || []));
+    box.querySelector('#addToGroupBtn').onclick = () => openAddToGroup(g);
+    box.querySelectorAll('button[data-rm]').forEach((b) => { b.onclick = async () => {
+      await api.del(`/groups/${g.id}/urls/${b.dataset.rm}`); toast('Dikeluarkan dari grup.', 'ok'); openGroup(); loadGroups();
+    }; });
+  }
+
+  function openReroot(g, urls) {
+    const sample = urls[0] ? esc(urls[0].target_url) : 'https://facebook.com/menu';
+    openModal(`<h3>Ubah root tujuan</h3>
+      <p class="muted small">Mengganti <strong>skema + domain</strong> tujuan untuk <strong>semua ${urls.length} tautan</strong> di grup ini. Path &amp; parameter tiap tautan dipertahankan.</p>
+      <p class="muted small">Contoh: <code>${sample}</code> → root baru diterapkan, path tetap.</p>
+      <label class="lbl">Root tujuan baru</label>
+      <input id="newRoot" placeholder="https://youtube.com" />
+      <div class="row end"><button class="btn" data-no>Batal</button><button class="btn primary" data-go>Terapkan</button></div>`);
+    $('#modalRoot [data-no]').onclick = closeModal;
+    $('#modalRoot [data-go]').onclick = async () => {
+      const newRoot = $('#newRoot').value.trim();
+      if (!newRoot) return;
+      const { status, data } = await api.post(`/groups/${g.id}/reroot`, { newRoot });
+      closeModal();
+      if (status === 202) { toast(`Antre: ${data.updated} tautan diperbarui.`, 'ok'); setTimeout(openGroup, 1800); }
+      else toast(data.error?.message || 'Gagal.', 'err');
+    };
+  }
+
+  async function openAddToGroup(g) {
+    const { data } = await api.get('/urls');
+    const candidates = (data.urls || []).filter((u) => u.state !== 'disabled');
+    openModal(`<h3>Tambah tautan ke grup</h3>
+      <p class="muted small">Pilih tautan yang sudah ada untuk dimasukkan ke "${esc(g.name)}".</p>
+      <div style="max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:.5rem">
+        ${candidates.map((u) => `<label style="display:flex;gap:.5rem;align-items:center;padding:.3rem 0">
+          <input type="checkbox" class="addchk" value="${u.id}" style="width:auto" />
+          <code>/${esc(u.slug)}</code> <span class="muted ellipsis">→ ${esc(u.target_url)}</span></label>`).join('') || '<span class="muted">Tidak ada tautan.</span>'}
+      </div>
+      <div class="row end"><button class="btn" data-no>Batal</button><button class="btn primary" data-add>Tambah</button></div>`);
+    $('#modalRoot [data-no]').onclick = closeModal;
+    $('#modalRoot [data-add]').onclick = async () => {
+      const urlIds = [...document.querySelectorAll('.addchk:checked')].map((c) => Number(c.value));
+      if (!urlIds.length) return closeModal();
+      const { status } = await api.post(`/groups/${g.id}/urls`, { urlIds });
+      closeModal();
+      toast(status === 200 ? 'Tautan ditambahkan.' : 'Gagal.', status === 200 ? 'ok' : 'err');
+      openGroup(); loadGroups();
+    };
+  }
+
+  loadGroups();
+  if (_openGroup) openGroup();
 }
 
 async function viewReferral(el) {
