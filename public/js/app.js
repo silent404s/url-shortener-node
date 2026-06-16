@@ -134,8 +134,11 @@ async function viewDashboard(el) {
   const u = me.usage || {}, q = me.quota || {};
   const totalClicks = (top.urls || []).reduce((s, r) => s + (r.clicks || 0), 0);
   const topRows = (top.urls || []).filter((r) => (r.clicks || 0) > 0);
+  const cf = me.cloudflare || {};
 
   el.innerHTML = `
+    ${cf.warnRotation ? `<div class="banner" style="background:color-mix(in srgb,var(--danger) 14%, transparent);color:var(--danger);margin-bottom:1.2rem">
+      <i class="fa-solid fa-triangle-exclamation"></i> Token Cloudflare terakhir diubah ${cf.daysSinceRotation} hari lalu. Demi keamanan, disarankan mengganti (rotasi) token setiap ${cf.warnDays} hari — buka menu <strong>Domain</strong>.</div>` : ''}
     <div class="grid stats">
       ${stat('fa-link', 'Tautan terpakai', `${u.urlCount ?? '–'} / ${q.urlLimit ?? '–'}`)}
       ${stat('fa-arrow-pointer', 'Total klik (top 10)', totalClicks.toLocaleString('id-ID'))}
@@ -177,6 +180,7 @@ async function viewDomains(el) {
         <input type="text" id="cfLabel" placeholder="Label (opsional)" />
         <button class="btn primary" id="saveTokenBtn"><i class="fa-solid fa-floppy-disk"></i> Validasi & simpan</button>
       </div>
+      <p id="cfStatus" class="small"></p>
     </div>
     <div class="card">
       <h2>2 · Daftarkan domain</h2>
@@ -196,11 +200,27 @@ async function viewDomains(el) {
     const token = $('#cfToken').value.trim(); const label = $('#cfLabel').value.trim();
     if (!token) return toast('Masukkan token terlebih dahulu.', 'warn');
     toast('Memvalidasi token ke Master…');
-    const { status, data } = await api.post('/cloudflare/token', { token, label });
+    const { status, data } = await api.post('/cloudflare/token', { token, label: label || undefined });
     if (status === 201) { $('#cfToken').value = '';
-      toast(`Token valid. ${(data.zones || []).length} zona terdeteksi di akun Anda.`, 'ok'); }
-    else toast(data.error?.message || 'Validasi gagal.', 'err');
+      toast(`Token valid. ${(data.zones || []).length} zona terdeteksi di akun Anda.`, 'ok'); renderCfStatus(); }
+    else { const detail = data.error?.details?.[0]?.message; toast(detail || data.error?.message || 'Validasi gagal.', 'err'); }
   };
+
+  async function renderCfStatus() {
+    const el = $('#cfStatus'); if (!el) return;
+    const { data } = await api.get('/me');
+    const cf = data.cloudflare || {};
+    if (!cf.connected) { el.textContent = 'Belum ada token Cloudflare tersimpan.'; el.style.color = 'var(--muted)'; return; }
+    const d = cf.daysSinceRotation;
+    const ago = d === 0 ? 'hari ini' : `${d} hari lalu`;
+    if (cf.warnRotation) {
+      el.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> API terakhir diubah <strong>${ago}</strong>. Disarankan mengganti (rotasi) token setiap ${cf.warnDays} hari untuk keamanan.`;
+      el.style.color = 'var(--danger)';
+    } else {
+      el.textContent = `API terakhir diubah ${ago}.`;
+      el.style.color = 'var(--muted)';
+    }
+  }
   $('#registerDomainBtn').onclick = async () => {
     const domainName = $('#domainInput').value.trim().toLowerCase();
     if (!domainName) return toast('Ketik nama domain dulu.', 'warn');
@@ -226,6 +246,7 @@ async function viewDomains(el) {
     else toast(data.error?.message || 'Gagal.', 'err');
   };
   loadDomains();
+  renderCfStatus();
 }
 
 async function viewUrls(el) {
