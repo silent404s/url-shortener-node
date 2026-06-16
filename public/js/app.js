@@ -8,9 +8,18 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-// ---- API helper ----------------------------------------------------------
+// ---- API helper (with a short GET cache for snappy navigation) -----------
+const GET_TTL = 10000;              // ms a cached GET stays "fresh"
+const _cache = new Map();           // path -> { data, ts }
+function invalidateCache() { _cache.clear(); }
+
 const api = {
   async req(method, path, body) {
+    // Serve fresh GETs straight from cache (no network → no loading flash).
+    if (method === 'GET') {
+      const hit = _cache.get(path);
+      if (hit && Date.now() - hit.ts < GET_TTL) return { status: 200, data: hit.data, cached: true };
+    }
     const opts = { method, headers: {} };
     if (body !== undefined) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
     let res;
@@ -18,6 +27,8 @@ const api = {
     catch { return { status: 0, data: { error: { message: 'Gagal terhubung ke server.' } } }; }
     if (res.status === 401) { window.location.href = '/'; throw new Error('no-session'); }
     const data = await res.json().catch(() => ({}));
+    if (method === 'GET') { if (res.ok) _cache.set(path, { data, ts: Date.now() }); }
+    else invalidateCache();          // any mutation invalidates cached reads
     return { status: res.status, data };
   },
   get: (p) => api.req('GET', p),
