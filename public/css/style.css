@@ -154,7 +154,16 @@ details { margin:.7rem 0; } details summary { cursor:pointer; color:var(--accent
   max-width:460px; width:100%; box-shadow:var(--shadow); }
 .modal-card h3 { font-size:1.18rem; }
 .modal-card input, .modal-card select { width:100%; }
-.bc h3 i { color:var(--accent); } .bc-warn h3 i { color:var(--warn); } .bc-critical h3 i { color:var(--danger); }
+/* Broadcast popup */
+.bc h3 { display:flex; align-items:center; gap:.55rem; font-size:1.2rem; margin:0 0 .5rem; }
+.bc h3 i { color:var(--accent); }
+.bc-warn h3 i { color:var(--warn); } .bc-critical h3 i { color:var(--danger); }
+.bc p { color:var(--muted); margin:0 0 1.1rem; line-height:1.55; }
+.bc .check { display:flex; align-items:center; gap:.6rem; margin:0 0 1.2rem; padding:.65rem .85rem;
+  background:var(--surface-2); border:1px solid var(--line); border-radius:10px; cursor:pointer; }
+.bc .check input { width:18px; height:18px; flex:none; margin:0; accent-color:var(--accent); cursor:pointer; }
+.bc .check span { font-size:.88rem; color:var(--text); }
+.bc .row.end { margin:0; }
 
 /* ---------- OTA overlay ---------- */
 .ota-overlay { position:fixed; inset:0; background:rgba(5,7,12,.85); display:grid; place-items:center; z-index:300; padding:1rem; }
