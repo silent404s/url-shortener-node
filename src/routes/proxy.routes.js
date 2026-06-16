@@ -47,6 +47,7 @@ router.get('/categories', relay('GET', '/node/categories'));
 router.post('/categories', relay('POST', '/node/categories'));
 
 // URLs (single + bulk + edit + delete)
+router.get('/urls/top', relay('GET', '/node/urls/top'));
 router.get('/urls', relay('GET', '/node/urls'));
 router.post('/urls', relay('POST', '/node/urls'));
 router.post('/urls/bulk', relay('POST', '/node/urls/bulk'));

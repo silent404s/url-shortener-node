@@ -129,14 +129,31 @@ const stat = (icon, label, value) => `<div class="card stat">
 async function viewDashboard(el) {
   const { data: me } = await api.get('/me');
   const { data: jobs } = await api.get('/jobs');
+  const { data: top } = await api.get('/urls/top');
   const u = me.usage || {}, q = me.quota || {};
+  const totalClicks = (top.urls || []).reduce((s, r) => s + (r.clicks || 0), 0);
+  const topRows = (top.urls || []).filter((r) => (r.clicks || 0) > 0);
+
   el.innerHTML = `
     <div class="grid stats">
       ${stat('fa-link', 'Tautan terpakai', `${u.urlCount ?? '–'} / ${q.urlLimit ?? '–'}`)}
+      ${stat('fa-arrow-pointer', 'Total klik (top 10)', totalClicks.toLocaleString('id-ID'))}
       ${stat('fa-globe', 'Domain aktif', `${u.activeDomains ?? '–'} / ${q.activeDomainLimit ?? '–'}`)}
-      ${stat('fa-layer-group', 'Domain terdaftar', `${u.registeredDomains ?? '–'} / ${q.registeredDomainLimit ?? '–'}`)}
       ${stat('fa-gift', 'Kode referral', esc(me.user?.referral_code || '–'))}
     </div>
+
+    <div class="card">
+      <h2>10 Tautan dengan klik tertinggi</h2>
+      <div class="table-wrap"><table class="table">
+        <thead><tr><th>Tautan pendek</th><th>Tujuan</th><th style="text-align:right">Klik</th></tr></thead>
+        <tbody>${topRows.map((r) => `<tr>
+          <td><code>${esc(r.zone_name)}/${esc(r.slug)}</code></td>
+          <td class="muted ellipsis">${esc(r.target_url)}</td>
+          <td style="text-align:right;font-weight:600">${(r.clicks || 0).toLocaleString('id-ID')}</td></tr>`).join('')
+          || '<tr><td colspan="3" class="muted">Belum ada data klik. Statistik diperbarui berkala dari Cloudflare.</td></tr>'}
+        </tbody></table></div>
+    </div>
+
     <div class="card">
       <h2>Aktivitas terbaru</h2>
       <div class="table-wrap"><table class="table">
@@ -240,7 +257,7 @@ async function viewUrls(el) {
       <div class="table-wrap"><table class="table" id="urlsTable">
         <thead><tr>
           <th class="chkcol"><input type="checkbox" id="checkAll" /></th>
-          <th>Tautan pendek</th><th>Tujuan</th><th>Status</th><th>Aksi</th>
+          <th>Tautan pendek</th><th>Tujuan</th><th style="text-align:right">Klik</th><th>Status</th><th>Aksi</th>
         </tr></thead><tbody></tbody></table></div>
     </div>`;
 
@@ -268,13 +285,14 @@ async function viewUrls(el) {
         <td class="chkcol"><input type="checkbox" class="rowchk" data-id="${u.id}" data-url="${esc(full)}" /></td>
         <td><code>${esc(full)}</code></td>
         <td class="muted ellipsis">${esc(u.target_url)}</td>
+        <td style="text-align:right;font-weight:600">${(u.clicks || 0).toLocaleString('id-ID')}</td>
         <td>${badge(u.state)}</td>
         <td class="actions">
           <button class="btn small" data-copy="${esc(full)}" title="Salin"><i class="fa-solid fa-copy"></i></button>
           <button class="btn small" data-edit="${u.id}" data-slug="${esc(u.slug)}" data-target="${esc(u.target_url)}" data-status="${u.redirect_status}" title="Edit"><i class="fa-solid fa-pen"></i></button>
           <button class="btn small danger" data-del="${u.id}" title="Hapus"><i class="fa-solid fa-trash"></i></button>
         </td></tr>`;
-    }).join('') || '<tr><td colspan="5" class="muted">Belum ada tautan.</td></tr>';
+    }).join('') || '<tr><td colspan="6" class="muted">Belum ada tautan.</td></tr>';
     $('#checkAll').checked = false; updateBulkBar();
   }
 
@@ -434,7 +452,8 @@ function viewHelp(el) {
     <h2>Panduan Singkat</h2>
     <h3>1. Buat Token API Cloudflare</h3>
     <p>Cloudflare Dashboard → My Profile → API Tokens → Create Custom Token. Beri izin:
-       <code>Zone · Zone · Read</code> dan <code>Zone · Single Redirect · Edit</code>.</p>
+       <code>Zone · Zone · Read</code>, <code>Zone · Single Redirect · Edit</code>, dan
+       (untuk statistik klik) <code>Zone · Analytics · Read</code>.</p>
     <h3>2. Hubungkan token</h3>
     <p>Buka menu <strong>Domain</strong>, tempel token, klik <em>Validasi & simpan</em>.</p>
     <h3>3. Daftarkan & aktifkan domain</h3>
