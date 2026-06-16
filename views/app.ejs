@@ -31,8 +31,14 @@
         <a href="#/contact" data-route="contact"><i class="fa-solid fa-headset"></i><span>Kontak</span></a>
       </nav>
       <div class="side-foot">
-        <button class="side-btn" id="themeToggle"><i class="fa-solid fa-moon"></i><span>Tema</span></button>
-        <button class="side-btn danger" id="logoutBtn"><i class="fa-solid fa-right-from-bracket"></i><span>Keluar</span></button>
+        <div class="side-user">
+          <span class="avatar"><%= ((typeof user !== 'undefined' && user && user.name) ? user.name : 'P').charAt(0).toUpperCase() %></span>
+          <div>
+            <span class="su-name"><%= (typeof user !== 'undefined' && user && user.name) ? user.name : 'Pengguna' %></span>
+            <span class="su-role">Pengguna</span>
+          </div>
+          <button class="side-logout" id="logoutBtn" title="Keluar"><i class="fa-solid fa-right-from-bracket"></i></button>
+        </div>
       </div>
     </aside>
     <div class="sidebar-backdrop" id="backdrop"></div>

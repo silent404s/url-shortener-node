@@ -63,18 +63,6 @@ function confirmDialog(message, onYes) {
   $('#modalRoot [data-yes]').onclick = () => { closeModal(); onYes(); };
 }
 
-// ---- Theme ---------------------------------------------------------------
-function applyTheme(t) {
-  document.documentElement.dataset.theme = t;
-  const i = $('#themeToggle i');
-  if (i) i.className = t === 'light' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
-}
-applyTheme(localStorage.getItem('theme') || 'dark');
-$('#themeToggle').addEventListener('click', () => {
-  const next = (document.documentElement.dataset.theme === 'light') ? 'dark' : 'light';
-  localStorage.setItem('theme', next); applyTheme(next);
-});
-
 // ---- Sidebar (mobile) ----------------------------------------------------
 const sidebar = $('#sidebar'), backdrop = $('#backdrop');
 $('#menuBtn').addEventListener('click', () => { sidebar.classList.add('open'); backdrop.classList.add('show'); });
