@@ -271,6 +271,7 @@ async function viewUrls(el) {
       <h2>Tautan tersimpan</h2>
       <div class="row">
         <select id="filterDomain"><option value="">Semua domain</option></select>
+        <input type="search" id="urlSearch" placeholder="Cari slug atau tujuan…" />
         <div class="bulkbar hidden" id="bulkBar">
           <span id="selCount" class="muted small">0 dipilih</span>
           <button class="btn small" id="bulkCopy"><i class="fa-solid fa-copy"></i> Salin terpilih</button>
@@ -303,14 +304,18 @@ async function viewUrls(el) {
 
   const shortUrl = (u) => `https://${domMap[u.domain_id] || 'domain'}/${u.slug}`;
 
-  async function loadUrls() {
-    const f = $('#filterDomain').value;
-    const { data } = await api.get('/urls' + (f ? `?domainId=${f}` : ''));
-    $('#urlsTable tbody').innerHTML = (data.urls || []).map((u) => {
+  let _urls = [];
+  function renderUrls() {
+    const q = ($('#urlSearch').value || '').trim().toLowerCase();
+    const list = q
+      ? _urls.filter((u) => u.slug.toLowerCase().includes(q) || (u.target_url || '').toLowerCase().includes(q))
+      : _urls;
+    $('#urlsTable tbody').innerHTML = list.map((u) => {
       const full = shortUrl(u);
+      const grp = u.group_name ? ` <span class="badge" style="background:color-mix(in srgb,var(--accent) 16%, transparent);color:var(--accent-2)">${esc(u.group_name)}</span>` : '';
       return `<tr>
         <td class="chkcol"><input type="checkbox" class="rowchk" data-id="${u.id}" data-url="${esc(full)}" /></td>
-        <td><code>${esc(full)}</code></td>
+        <td><code>${esc(full)}</code>${grp}</td>
         <td class="muted ellipsis">${esc(u.target_url)}</td>
         <td style="text-align:right;font-weight:600">${(u.clicks || 0).toLocaleString('id-ID')}</td>
         <td>${badge(u.state)}</td>
@@ -319,8 +324,14 @@ async function viewUrls(el) {
           <button class="btn small" data-edit="${u.id}" data-slug="${esc(u.slug)}" data-target="${esc(u.target_url)}" data-status="${u.redirect_status}" title="Edit"><i class="fa-solid fa-pen"></i></button>
           <button class="btn small danger" data-del="${u.id}" title="Hapus"><i class="fa-solid fa-trash"></i></button>
         </td></tr>`;
-    }).join('') || '<tr><td colspan="6" class="muted">Belum ada tautan.</td></tr>';
+    }).join('') || `<tr><td colspan="6" class="muted">${q ? 'Tidak ada hasil untuk pencarian.' : 'Belum ada tautan.'}</td></tr>`;
     $('#checkAll').checked = false; updateBulkBar();
+  }
+  async function loadUrls() {
+    const f = $('#filterDomain').value;
+    const { data } = await api.get('/urls' + (f ? `?domainId=${f}` : ''));
+    _urls = data.urls || [];
+    renderUrls();
   }
 
   const selected = () => [...document.querySelectorAll('.rowchk:checked')];
@@ -401,6 +412,7 @@ async function viewUrls(el) {
   }
 
   $('#filterDomain').onchange = loadUrls;
+  $('#urlSearch').oninput = renderUrls;   // client-side filter on the loaded list
   loadUrls();
 }
 
