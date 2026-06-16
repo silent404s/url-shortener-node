@@ -82,7 +82,7 @@ code { font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:.86em; }
 input, select, textarea { background:#fff; border:1px solid var(--line); color:var(--text);
   border-radius:var(--r-sm); padding:.6rem .8rem; font-size:.93rem; font-family:inherit; }
 input::placeholder, textarea::placeholder { color:var(--faint); }
-input, select { flex:1; min-width:150px; }
+input:not([type=checkbox]):not([type=radio]), select { flex:1; min-width:150px; }
 input:focus, select:focus, textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(79,70,229,.12); }
 textarea { width:100%; resize:vertical; font-family:ui-monospace,monospace; }
 .btn { display:inline-flex; align-items:center; gap:.5rem; background:#fff; color:var(--text);
