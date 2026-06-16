@@ -318,7 +318,9 @@ async function viewUrls(el) {
         <td><code>${esc(full)}</code>${grp}</td>
         <td class="muted ellipsis">${esc(u.target_url)}</td>
         <td style="text-align:right;font-weight:600">${(u.clicks || 0).toLocaleString('id-ID')}</td>
-        <td>${badge(u.state)}</td>
+        <td>${u.state === 'failed' && u.last_error
+          ? `<span title="${esc(u.last_error)}">${badge(u.state)} <i class="fa-solid fa-circle-info" style="color:var(--danger)"></i></span>`
+          : badge(u.state)}</td>
         <td class="actions">
           <button class="btn small" data-copy="${esc(full)}" title="Salin"><i class="fa-solid fa-copy"></i></button>
           <button class="btn small" data-edit="${u.id}" data-slug="${esc(u.slug)}" data-target="${esc(u.target_url)}" data-status="${u.redirect_status}" title="Edit"><i class="fa-solid fa-pen"></i></button>
