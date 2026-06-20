@@ -4,8 +4,11 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { execFile, spawn } = require('child_process');
+const { promisify } = require('util');
 const { requireSession } = require('../session');
 const logger = require('../logger');
+
+const pexec = promisify(execFile);
 
 const router = express.Router();
 
@@ -28,6 +31,24 @@ router.get('/system/version', (req, res) => {
   execFile('git', ['-C', APP_DIR, 'rev-parse', '--short', 'HEAD'], { timeout: 5000 }, (err, out) => {
     res.json({ version: err ? 'unknown' : String(out).trim(), otaEnabled: OTA_ENABLED, bootId: BOOT_ID });
   });
+});
+
+/**
+ * GET /api/system/check-update — fetch the remote and report whether the local
+ * commit is the latest (how many commits behind origin/main).
+ */
+router.get('/system/check-update', async (req, res) => {
+  const git = (args) => pexec('git', ['-C', APP_DIR, ...args], {
+    timeout: 20000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+  }).then((r) => String(r.stdout).trim());
+
+  let fetchOk = true;
+  try { await git(['fetch', '--quiet', 'origin']); } catch { fetchOk = false; }
+  const current = await git(['rev-parse', '--short', 'HEAD']).catch(() => 'unknown');
+  const latest = await git(['rev-parse', '--short', 'origin/main']).catch(() => 'unknown');
+  let behind = 0;
+  try { behind = parseInt(await git(['rev-list', '--count', 'HEAD..origin/main']), 10) || 0; } catch { /* keep 0 */ }
+  res.json({ current, latest, behind, upToDate: fetchOk && behind === 0, fetchOk, otaEnabled: OTA_ENABLED });
 });
 
 /** GET /api/system/ota-log — last lines of the OTA log (for diagnosing). */

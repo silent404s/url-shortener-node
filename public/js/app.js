@@ -582,16 +582,37 @@ async function viewSecurity(el) {
     <div class="card">
       <h2>Sistem</h2>
       <p class="muted small">Versi terpasang: <code id="sysVer">…</code></p>
-      <button class="btn" id="otaBtn"><i class="fa-solid fa-cloud-arrow-down"></i> Update Situs</button>
-      <p class="muted small">Menarik kode terbaru dari repositori lalu memuat ulang panel.</p>
+      <p id="updStatus" class="small">Memeriksa pembaruan…</p>
+      <div class="row">
+        <button class="btn" id="checkUpdBtn"><i class="fa-solid fa-rotate"></i> Cek pembaruan</button>
+        <button class="btn primary" id="otaBtn" disabled><i class="fa-solid fa-cloud-arrow-down"></i> Update Situs</button>
+      </div>
     </div>`;
 
-  (async () => {
-    const { data: v } = await api.get('/system/version');
-    $('#sysVer').textContent = v.version || 'unknown';
-    if (v.otaEnabled === false) $('#otaBtn').disabled = true;
-  })();
+  async function refreshUpdate() {
+    $('#updStatus').textContent = 'Memeriksa pembaruan…';
+    $('#checkUpdBtn').disabled = true;
+    let data = {};
+    try { const r = await fetch('/api/system/check-update', { cache: 'no-store' }); data = await r.json(); } catch { /* offline */ }
+    $('#checkUpdBtn').disabled = false;
+    $('#sysVer').textContent = data.current || 'unknown';
+    const ota = $('#otaBtn');
+    if (data.otaEnabled === false) { ota.disabled = true; $('#updStatus').innerHTML = '<span class="muted">OTA dinonaktifkan.</span>'; return; }
+    if (!data.fetchOk) {
+      $('#updStatus').innerHTML = '<span style="color:var(--warn)"><i class="fa-solid fa-triangle-exclamation"></i> Tidak bisa memeriksa (akses repo/koneksi). Anda tetap bisa mencoba update.</span>';
+      ota.disabled = false; return;
+    }
+    if (data.upToDate) {
+      $('#updStatus').innerHTML = '<span style="color:var(--ok)"><i class="fa-solid fa-circle-check"></i> Sudah versi terbaru.</span>';
+      ota.disabled = true;
+    } else {
+      $('#updStatus').innerHTML = `<span style="color:var(--accent-2)"><i class="fa-solid fa-circle-arrow-up"></i> Pembaruan tersedia: <strong>${data.behind} commit</strong> baru (terbaru <code>${esc(data.latest)}</code>).</span>`;
+      ota.disabled = false;
+    }
+  }
+  $('#checkUpdBtn').onclick = refreshUpdate;
   $('#otaBtn').onclick = () => confirmDialog('Tarik pembaruan terbaru & muat ulang panel?', runOtaUpdate);
+  refreshUpdate();
 
   $('#changePwBtn').onclick = async () => {
     const currentPassword = $('#curPw').value;
