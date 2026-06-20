@@ -681,9 +681,18 @@ async function runOtaUpdate() {
 
   const started = Date.now();
   const poll = async () => {
-    if (Date.now() - started > 120000) {
+    if (Date.now() - started > 90000) {
       window.onbeforeunload = null;
-      setOtaText('Memakan waktu lebih lama dari biasa. Silakan <strong>segarkan halaman</strong> secara manual.');
+      let log = '';
+      try { const r = await fetch('/api/system/ota-log', { cache: 'no-store' }); if (r.ok) log = (await r.json()).log || ''; } catch { /* ignore */ }
+      const box = document.querySelector('#otaOverlay .ota-box');
+      if (box) {
+        box.innerHTML = `<h3>Pembaruan belum selesai</h3>
+          <p class="muted small">Kemungkinan repo privat (git butuh login), nama PM2 berbeda, atau npm lambat. Log terakhir:</p>
+          <pre style="text-align:left;max-height:170px;overflow:auto;font-size:.72rem">${(log || '(log kosong)').replace(/[&<]/g, (c) => ({ '&': '&amp;', '<': '&lt;' }[c]))}</pre>
+          <button class="btn" id="otaClose">Tutup</button>`;
+        document.getElementById('otaClose').onclick = () => { $('#otaOverlay')?.remove(); };
+      }
       return;
     }
     let bid = null;

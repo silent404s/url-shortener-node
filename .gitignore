@@ -3,6 +3,7 @@ node_modules/
 .env.*
 !.env.example
 data/
+ota.log
 npm-debug.log*
 logs/
 *.log
