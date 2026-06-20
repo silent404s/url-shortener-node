@@ -666,9 +666,10 @@ function showOtaOverlay() {
 function setOtaText(html) { const el = $('#otaText'); if (el) el.innerHTML = html; }
 
 async function runOtaUpdate() {
-  // Record the current process boot id so we can detect the restart.
+  // Record the current process boot id (public ping — survives the session
+  // being invalidated by the restart) so we can detect when it comes back.
   let boot0 = null;
-  try { const r = await api.get('/system/version'); boot0 = r.data.bootId; } catch { /* ignore */ }
+  try { const r = await fetch('/api/system/ping', { cache: 'no-store' }); if (r.ok) boot0 = (await r.json()).bootId; } catch { /* ignore */ }
 
   showOtaOverlay();
   window.onbeforeunload = () => 'Pembaruan sedang berlangsung.';
@@ -697,13 +698,13 @@ async function runOtaUpdate() {
     }
     let bid = null;
     try {
-      const r = await fetch('/api/system/version', { cache: 'no-store' });
+      const r = await fetch('/api/system/ping', { cache: 'no-store' });
       if (r.ok) { bid = (await r.json()).bootId; }
     } catch { /* server restarting — keep waiting */ }
     if (bid && boot0 && bid !== boot0) {
       window.onbeforeunload = null;
       setOtaText('Pembaruan selesai. Memuat ulang…');
-      setTimeout(() => window.location.reload(), 1200);
+      setTimeout(() => window.location.reload(), 1500);
       return;
     }
     setTimeout(poll, 2500);

@@ -8,7 +8,6 @@ const { requireSession } = require('../session');
 const logger = require('../logger');
 
 const router = express.Router();
-router.use(requireSession);
 
 const APP_DIR = process.env.APP_DIR || path.join(__dirname, '..', '..');
 const PM2_NAME = process.env.PM2_NAME || 'node-panel';
@@ -16,6 +15,13 @@ const OTA_ENABLED = (process.env.OTA_ENABLED || 'true') !== 'false';
 const OTA_LOG = path.join(APP_DIR, 'ota.log');
 // Unique per process start — lets the client detect when the panel has restarted.
 const BOOT_ID = crypto.randomBytes(8).toString('hex');
+
+// PUBLIC (no session): tiny boot-id ping so the OTA overlay can detect the
+// restart even though the restart invalidates the session.
+router.get('/system/ping', (req, res) => res.json({ bootId: BOOT_ID }));
+
+// Everything below requires a session.
+router.use(requireSession);
 
 /** GET /api/system/version — git commit, OTA flag, and this process's boot id. */
 router.get('/system/version', (req, res) => {
