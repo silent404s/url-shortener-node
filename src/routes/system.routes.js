@@ -45,8 +45,13 @@ router.get('/system/ota-log', (req, res) => {
  */
 router.post('/system/update', (req, res) => {
   if (!OTA_ENABLED) return res.status(403).json({ error: { message: 'OTA dinonaktifkan.' } });
+  // Only run npm install when dependency files actually changed in the pull —
+  // otherwise OTA is just a fast pull + restart.
   const cmd = `cd "${APP_DIR}" && echo "=== OTA $(date) ===" && git pull --ff-only && ` +
-    `npm install --omit=dev && pm2 restart ${PM2_NAME} && echo "=== OTA done ==="`;
+    `( git diff --name-only HEAD@{1} HEAD | grep -qE 'package(-lock)?\\.json$' ` +
+    `&& echo 'deps changed -> npm install' && npm install --omit=dev ` +
+    `|| echo 'no dependency changes -> skip npm install' ) && ` +
+    `pm2 restart ${PM2_NAME} && echo "=== OTA done ==="`;
   logger.info({ APP_DIR, PM2_NAME }, 'OTA update triggered');
   try {
     const out = fs.openSync(OTA_LOG, 'a');
